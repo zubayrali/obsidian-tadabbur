@@ -16,13 +16,18 @@ export class ReflectionIndexService implements ReflectionIndex {
 	constructor(private app: App) {}
 
 	// ponytail: cheap change-detector so unrelated vault edits don't fire listeners
-	// (each fire costs a full reader re-render). Not a parser — just path+line+uri.
+	// (each fire costs a full reader re-render). Not a parser — just
+	// path+line+callout-ness+uri. The callout flag matters: it's what splits
+	// reflectionsFor from mentionsFor, and un/wrapping a callout in place changes
+	// neither the line index nor the uri — without it that edit would be invisible
+	// and the strip would keep the ref mis-grouped.
 	private fingerprint(files: { path: string; content: string }[]): string {
 		const out: string[] = [];
 		for (const f of files) {
 			f.content.split("\n").forEach((line, i) => {
+				const callout = /^\s*>\s*\[!/.test(line) ? "1" : "0";
 				for (const m of line.matchAll(/\[[^\]\n]*\]\((falah:\/\/[^\s)]+)\)/g)) {
-					out.push(`${f.path}#${i}:${m[1]}`);
+					out.push(`${f.path}#${i}${callout}:${m[1]}`);
 				}
 			});
 		}
