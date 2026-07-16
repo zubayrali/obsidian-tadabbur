@@ -1,92 +1,52 @@
-# Obsidian Sample Plugin
+# Tadabbur
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+Quran reflection and journaling for Obsidian. Reflect on an ayah straight from the reader, and your notes become a map of which verses you've sat with — and which ones you connect.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## Requires Falah
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
+**Tadabbur is a companion plugin. It does nothing on its own, and it will not enable without [Falah](https://github.com/zubayrali/obsidian-falah) installed and enabled.**
 
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and outputs a Notice on click.
-- Registers a global interval which logs 'setInterval' to the console.
+Falah provides the Quran text, translations, and the reader that Tadabbur hooks into. Install Falah first, then enable Tadabbur.
 
-## First time developing plugins?
+The split is deliberate: if you only want a Quran reader with clickable references, Falah alone is that — and none of the journaling opinions below get forced on you.
 
-Quick starting guide for new plugin devs:
+## What it does
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `src/main.ts` to `main.js`.
-- Make changes to `src/main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+- **Reflect from the reader.** Right-click (or ⋯) any ayah → *Reflect on this verse* → write. It's saved with the verse quoted above it.
+- **Your notes, your structure.** Write to a per-ayah note (`Tadabbur/2-255.md`) or append to today's daily note — honouring your own Daily Notes folder, format, and **template**. Reflect on the same ayah again next week and it appends; nothing is overwritten.
+- **Connections without link plumbing.** The verse callout Tadabbur inserts *is* the connection. Cite 2:255 and 59:22 in one reflection and the reader shows that link from **either** verse — no `[[2:255]]` wikilinks, which nobody reads or remembers by number anyway.
+- **Reflections surface where you read.** Under each ayah: which of your notes reflect on it, which merely mention it, and which verses you've connected it to. Click through to the note in a new tab.
+- **Prompts, not blank pages.** Optional scaffolds — *Summary / What it means to me / One action*, or *self-examination / gratitude / du'ā*. Offline, editable, no AI.
+- **Works with Bases.** Reflections are stamped with `verses`, `themes`, and `#tadabbur` frontmatter. The *Create reflections base* command drops in a ready-made Base with timeline, by-theme, and card views.
 
-## Releasing new releases
+Everything is plain Markdown in your vault. Nothing is stored anywhere else.
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+## Install
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+Until this is in the community plugin store:
 
-## Adding your plugin to the community plugin list
+1. Install and enable **[Falah](https://github.com/zubayrali/obsidian-falah)**.
+2. Download `main.js`, `manifest.json`, and `styles.css` from this repo's latest release.
+3. Put them in `<vault>/.obsidian/plugins/falah-tadabbur/`.
+4. Reload Obsidian and enable **Tadabbur** in Community Plugins.
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+## Settings
 
-## How to use
+- **Save reflections to** — per-ayah note, today's daily note, or ask each time.
+- **Per-ayah reflection folder** — default `Tadabbur`.
+- **Daily-note heading** — the heading reflections are appended under. Default `Tadabbur`.
+- **Default reflection scaffold** — which prompt structure the capture box starts with.
 
-- Clone this repo.
-- Make sure your NodeJS is at least v18 (`node --version`).
-- `npm i` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+## Development
 
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code.
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-	"fundingUrl": "https://buymeacoffee.com"
-}
+```bash
+npm install
+npm run dev    # watch build
+npm test       # vitest
 ```
 
-If you have multiple URLs, you can also do:
+Tadabbur consumes Falah's public plugin API (`app.plugins.plugins["falah"].api`, v3+) and imports **no Falah source** — only the vendored types in `src/falah-api.d.ts`. If Falah's public API changes, update that file and the version floor in `src/falah-runtime.ts` together.
 
-```json
-{
-	"fundingUrl": {
-		"Buy Me a Coffee": "https://buymeacoffee.com",
-		"GitHub Sponsor": "https://github.com/sponsors",
-		"Patreon": "https://www.patreon.com/"
-	}
-}
-```
+## License
 
-## API Documentation
-
-See https://docs.obsidian.md
+MIT

@@ -1,5 +1,5 @@
-import { Notice, Plugin } from "obsidian";
-import { resolveFalah, setFalah, REQUIRED_FALAH_API } from "./falah-runtime";
+import { Notice, Plugin, type App, type PluginManifest } from "obsidian";
+import { resolveFalah, setFalah, isFalahEnabled, REQUIRED_FALAH_API, FALAH_URL } from "./falah-runtime";
 import type { FalahApi, VerseContext } from "./falah-api";
 import { ReflectionIndexService } from "./data/reflections/service";
 import { reflectVerseAction } from "./reflect/action";
@@ -7,12 +7,33 @@ import { renderReflectionStrip } from "./reflect/strip";
 import { TadabburSettingTab, DEFAULT_SETTINGS, type TadabburSettings } from "./settings";
 import { createReflectionsBase } from "./base";
 
+const NO_FALAH_MESSAGE =
+	"Tadabbur requires the Falah plugin — it reads the Quran text and reader from it, and does nothing on its own. " +
+	`Install and enable Falah first, then enable Tadabbur.\n\n${FALAH_URL}`;
+
 export default class TadabburPlugin extends Plugin {
 	settings: TadabburSettings = { ...DEFAULT_SETTINGS };
 	index?: ReflectionIndexService;
 	private offVerseAction?: () => void;
 	private offDecorator?: () => void;
 	private offIndexChange?: () => void;
+
+	constructor(app: App, manifest: PluginManifest) {
+		super(app, manifest);
+		// Obsidian offers no way to decline being enabled — no manifest dependency
+		// field, no pre-enable hook. Throwing from the constructor is the one thing
+		// that makes the load fail, so the toggle doesn't stay on. (Same mechanism
+		// obsidian-lifeos uses for its Dataview dependency.)
+		//
+		// This checks enabledPlugins, NOT the api: that set is populated from config
+		// before any plugin loads, so it's load-order safe here. "Falah enabled but
+		// its api not published yet" is a different question, handled in onload.
+		if (!isFalahEnabled(app)) {
+			new Notice(NO_FALAH_MESSAGE, 15000);
+			console.error(`Tadabbur: ${NO_FALAH_MESSAGE}`);
+			throw new Error("Tadabbur requires the Falah plugin. Install and enable Falah, then enable Tadabbur.");
+		}
+	}
 
 	async onload(): Promise<void> {
 		this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
@@ -55,8 +76,17 @@ export default class TadabburPlugin extends Plugin {
 		this.app.workspace.onLayoutReady(() => {
 			if (this.index) return; // already attached via falah:api-ready in the meantime
 			const late = resolveFalah(this.app);
-			if (late) this.attach(late);
-			else new Notice(`Tadabbur requires the Falah plugin (API ≥ ${REQUIRED_FALAH_API}). Install/enable Falah and reload.`);
+			if (late) {
+				this.attach(late);
+				return;
+			}
+			// The constructor already proved Falah is enabled, so this isn't "not
+			// installed" — Falah is present but published no compatible api. In
+			// practice that means it's too old for us.
+			new Notice(
+				`Tadabbur needs Falah's plugin API v${REQUIRED_FALAH_API} or newer. Falah is enabled but didn't provide it — update Falah, then reload.`,
+				15000
+			);
 		});
 	}
 
