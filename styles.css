@@ -6,3 +6,35 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+.falah-reflect-strip {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1rem;
+	margin-top: 0.35rem;
+	font-size: 0.8em;
+	color: var(--text-muted);
+}
+.falah-reflect-group {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem;
+}
+.falah-reflect-label {
+	font-weight: 600;
+}
+.falah-reflect-link {
+	cursor: pointer;
+	color: var(--text-accent);
+	text-decoration: none;
+}
+.falah-reflect-link:hover {
+	text-decoration: underline;
+}
+.falah-reflect-input {
+	width: 100%;
+	min-height: 8rem;
+	resize: vertical;
+	font-family: var(--font-text);
+}
