@@ -101,7 +101,7 @@ async function writeReflection(
 
 	try {
 		if (destination === "daily-note") {
-			const path = await dailyNotePath(app);
+			const path = dailyNotePath(app);
 			const seed = await dailyNoteTemplateSeed(app, path);
 			await appendToFile(app, path, settings.dailyNoteHeading, entry, blockId, ctx, themes, seed);
 		} else {
@@ -123,14 +123,23 @@ async function writeReflection(
 	}
 }
 
-type DailyNoteOptions = { folder?: string; format?: string; template?: string };
+export type DailyNoteOptions = { folder?: string; format?: string; template?: string };
 
-function dailyNoteOptions(app: App): DailyNoteOptions {
-	return (
-		(app as unknown as {
-			internalPlugins?: { getPluginById(id: string): { instance?: { options?: DailyNoteOptions } } | null };
-		}).internalPlugins?.getPluginById("daily-notes")?.instance?.options ?? {}
-	);
+type InternalPlugins = {
+	internalPlugins?: {
+		getPluginById(id: string): { enabled?: boolean; instance?: { options?: DailyNoteOptions } } | null;
+	};
+};
+
+export function dailyNoteOptions(app: App): DailyNoteOptions {
+	return (app as unknown as InternalPlugins).internalPlugins?.getPluginById("daily-notes")?.instance?.options ?? {};
+}
+
+/** Is core Daily Notes actually on? If not we still write a `<date>.md`, but at
+ *  the vault root with default formatting — worth warning about rather than
+ *  silently scattering notes. */
+export function dailyNotesEnabled(app: App): boolean {
+	return (app as unknown as InternalPlugins).internalPlugins?.getPluginById("daily-notes")?.enabled ?? false;
 }
 
 // `typeof Moment` (obsidian's re-export) loses its call signature under this
@@ -140,7 +149,7 @@ function now(): { format(fmt: string): string } {
 }
 
 /** Today's daily-note path from the user's core Daily Notes config. */
-async function dailyNotePath(app: App): Promise<string> {
+export function dailyNotePath(app: App): string {
 	const { folder = "", format } = dailyNoteOptions(app);
 	const name = `${now().format(format || "YYYY-MM-DD")}.md`;
 	return normalizePath(folder ? `${folder}/${name}` : name);

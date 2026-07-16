@@ -38,3 +38,14 @@ If your plugin does not need CSS, delete this file.
 	resize: vertical;
 	font-family: var(--font-text);
 }
+
+/* Settings hints: live path previews + validation reasons. */
+.tadabbur-hint {
+	font-size: 0.85em;
+	line-height: 1.5;
+	color: var(--text-muted);
+}
+.tadabbur-hint-warn {
+	color: var(--text-warning);
+	margin-top: 0.15rem;
+}
