@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildIndex, expandVerseKeys } from "./index";
-import type { FoundReference, IslamicReference, QuranRef } from "../../falah-api";
+import type { FoundReference, QuranRef } from "../../falah-api";
 
 const q = (surah: number, ayah: number, toAyah?: number): QuranRef => ({
 	kind: "quran",
@@ -9,68 +9,18 @@ const q = (surah: number, ayah: number, toAyah?: number): QuranRef => ({
 	...(toAyah !== undefined ? { toAyah } : {}),
 });
 
-// Faithful fake of Falah's real ref.ts `findReferences`/`parseRefUri` (see
-// obsidian-falah/src/ref.ts): same link regex, same surah/ayah bounds
-// validation (1-114 / 1-286), same hadith collection/number validation. Kept
-// in sync with the real implementation so this pure suite stays meaningful
-// without importing Falah source.
-function int(s: string): number | null {
-	return /^\d+$/.test(s) ? parseInt(s, 10) : null;
-}
-function validQuran(surah: number, ayah: number, toAyah?: number): boolean {
-	if (surah < 1 || surah > 114 || ayah < 1 || ayah > 286) return false;
-	if (toAyah !== undefined && (toAyah < ayah || toAyah > 286)) return false;
-	return true;
-}
-function parseRefUri(uri: string): IslamicReference | null {
-	const m = /^falah:\/\/(quran|hadith)\/([^?#\s]+)(?:\?([^#\s]*))?$/.exec(uri.trim());
-	if (!m) return null;
-	const parts = m[2]!.split("/").filter(Boolean);
-	if (parts.length !== 2) return null;
-
-	if (m[1] === "quran") {
-		const surah = int(parts[0]!);
-		const range = /^(\d+)(?:-(\d+))?$/.exec(parts[1]!);
-		if (surah === null || !range) return null;
-		const ayah = parseInt(range[1]!, 10);
-		const toAyah = range[2] ? parseInt(range[2], 10) : undefined;
-		if (!validQuran(surah, ayah, toAyah)) return null;
-		const ref: { kind: "quran"; surah: number; ayah: number; toAyah?: number; fromWord?: number; toWord?: number } = {
-			kind: "quran",
-			surah,
-			ayah,
-		};
-		if (toAyah !== undefined && toAyah !== ayah) ref.toAyah = toAyah;
-		if (m[3]) {
-			const query = new URLSearchParams(m[3]);
-			const fromWord = query.get("fromWord");
-			const toWord = query.get("toWord");
-			if (fromWord !== null) {
-				const n = int(fromWord);
-				if (n === null || n < 1) return null;
-				ref.fromWord = n;
-			}
-			if (toWord !== null) {
-				const n = int(toWord);
-				if (n === null || n < (ref.fromWord ?? 1)) return null;
-				ref.toWord = n;
-			}
-		}
-		return ref;
-	}
-
-	const collection = parts[0]!.toLowerCase();
-	const number = parts[1]!.toLowerCase();
-	if (!/^[a-z][a-z0-9_]*$/.test(collection) || !/^\d+[a-z]?$/.test(number)) return null;
-	return { kind: "hadith", collection, number };
-}
+// ponytail: minimal stand-in for Falah's real ref.ts `findReferences` — only
+// quran links (single ayah or range), the only shapes these tests use (no
+// hadith, no bounds validation, no word offsets). Falah's ref.ts has its own
+// tests.
 function findReferences(text: string): FoundReference[] {
 	const out: FoundReference[] = [];
-	const re = /\[([^\]\n]*)\]\((falah:\/\/[^\s)]+)\)/g;
+	const re = /\[([^\]\n]*)\]\((falah:\/\/quran\/(\d+)\/(\d+)(?:-(\d+))?)\)/g;
 	let m: RegExpExecArray | null;
 	while ((m = re.exec(text))) {
-		const ref = parseRefUri(m[2]!);
-		if (ref) out.push({ index: m.index, match: m[0]!, label: m[1]!, uri: m[2]!, ref });
+		const ref: QuranRef = { kind: "quran", surah: Number(m[3]), ayah: Number(m[4]) };
+		if (m[5] !== undefined) ref.toAyah = Number(m[5]);
+		out.push({ index: m.index, match: m[0]!, label: m[1]!, uri: m[2]!, ref });
 	}
 	return out;
 }

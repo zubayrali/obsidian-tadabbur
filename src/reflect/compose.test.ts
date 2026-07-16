@@ -4,45 +4,14 @@ import type { IslamicReference, QuranRef, RenderedText } from "../falah-api";
 
 const ref: QuranRef = { kind: "quran", surah: 2, ayah: 255 };
 
-// Faithful fake of Falah's real ref.ts `toCallout` (see obsidian-falah/src/ref.ts):
-// title line via toLabel/toUri, then `> `-prefixed arabic/translation/attribution
-// lines, each whitespace-collapsed. Kept in sync with the real implementation so
-// this pure suite stays meaningful without importing Falah source.
-const HADITH_COLLECTION_NAMES: Record<string, string> = {
-	bukhari: "Bukhari",
-	muslim: "Muslim",
-	abudawud: "Abu Dawud",
-	tirmidhi: "Tirmidhi",
-	nasai: "an-Nasa'i",
-	ibnmajah: "Ibn Majah",
-	malik: "Malik",
-	nawawi: "Nawawi",
-	qudsi: "Qudsi",
-	dehlawi: "Dehlawi",
-};
-const collapse = (s: string) => s.replace(/\s*\n\s*/g, " ").trim();
-function toLabel(r: IslamicReference): string {
-	if (r.kind === "quran") {
-		return `Quran ${r.surah}:${r.ayah}${r.toAyah !== undefined ? `-${r.toAyah}` : ""}`;
-	}
-	const name = HADITH_COLLECTION_NAMES[r.collection] ?? r.collection.charAt(0).toUpperCase() + r.collection.slice(1);
-	return `Hadith ${name} ${r.number}`;
-}
-function toUri(r: IslamicReference): string {
-	if (r.kind === "hadith") return `falah://hadith/${r.collection}/${r.number}`;
-	let uri = `falah://quran/${r.surah}/${r.ayah}`;
-	if (r.toAyah !== undefined) uri += `-${r.toAyah}`;
-	const q = new URLSearchParams();
-	if (r.fromWord !== undefined) q.set("fromWord", String(r.fromWord));
-	if (r.toWord !== undefined) q.set("toWord", String(r.toWord));
-	const qs = q.toString();
-	return qs ? `${uri}?${qs}` : uri;
-}
+// ponytail: minimal stand-in for Falah's real ref.ts `toCallout` — only the
+// single-ayah quran + arabic/translation shape these tests use (no hadith, no
+// ranges, no attribution). Falah's ref.ts has its own tests.
 const toCallout = (r: IslamicReference, text?: RenderedText): string => {
-	const lines = [`> [!${r.kind}] [${toLabel(r)}](${toUri(r)})`];
-	if (text?.arabic) lines.push(`> ${collapse(text.arabic)}`);
-	if (text?.translation) lines.push(`> ${collapse(text.translation)}`);
-	if (text?.attribution) lines.push(`> — ${collapse(text.attribution)}`);
+	if (r.kind !== "quran") throw new Error("fake toCallout: hadith unused in these tests");
+	const lines = [`> [!quran] [Quran ${r.surah}:${r.ayah}](falah://quran/${r.surah}/${r.ayah})`];
+	if (text?.arabic) lines.push(`> ${text.arabic.trim()}`);
+	if (text?.translation) lines.push(`> ${text.translation.trim()}`);
 	return lines.join("\n");
 };
 
