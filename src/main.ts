@@ -9,49 +9,35 @@ import { createReflectionsBase } from "./base";
 
 export default class TadabburPlugin extends Plugin {
 	settings: TadabburSettings = { ...DEFAULT_SETTINGS };
-	index!: ReflectionIndexService;
+	index?: ReflectionIndexService;
 	private offVerseAction?: () => void;
 	private offDecorator?: () => void;
+	private offIndexChange?: () => void;
 
 	async onload(): Promise<void> {
 		this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
-		// Falah may load after us; resolve now, else retry once the layout is ready.
-		const falah = resolveFalah(this.app);
-		if (falah) return this.activate(falah);
-		this.app.workspace.onLayoutReady(() => {
-			const late = resolveFalah(this.app);
-			if (late) this.activate(late);
-			else new Notice(`Tadabbur requires the Falah plugin (API ≥ ${REQUIRED_FALAH_API}). Install/enable Falah and reload.`);
-		});
-	}
-
-	private activate(falah: FalahApi): void {
-		setFalah(falah);
-
-		this.index = new ReflectionIndexService(this.app);
-		this.register(() => this.index.dispose());
-		this.app.workspace.onLayoutReady(() => void this.index.scanAll());
-		// Falah can't re-run our row decorator on its own — ask it to refresh the
-		// open reader's rows whenever the index changes so the per-ayah reflection
-		// strip stays live (no waiting for the user to change surah).
-		this.register(this.index.onChange(() => falah.refreshReader()));
+		this.register(() => this.detach());
 
 		// Obsidian's vault.on has per-literal overloads that don't distribute
 		// over a union, so a for...of over the event names doesn't type-check.
 		// Unrolled into four explicit registrations (same fix as Phase 3a).
-		this.registerEvent(this.app.vault.on("modify", () => this.index.scheduleRescan()));
-		this.registerEvent(this.app.vault.on("create", () => this.index.scheduleRescan()));
-		this.registerEvent(this.app.vault.on("delete", () => this.index.scheduleRescan()));
-		this.registerEvent(this.app.vault.on("rename", () => this.index.scheduleRescan()));
+		// Plugin-lifetime (registered once, not re-wired per attach/detach cycle);
+		// guarded with `?.` because Falah — and so this.index — may not exist yet,
+		// or may never arrive at all.
+		this.registerEvent(this.app.vault.on("modify", () => this.index?.scheduleRescan()));
+		this.registerEvent(this.app.vault.on("create", () => this.index?.scheduleRescan()));
+		this.registerEvent(this.app.vault.on("delete", () => this.index?.scheduleRescan()));
+		this.registerEvent(this.app.vault.on("rename", () => this.index?.scheduleRescan()));
+		this.app.workspace.onLayoutReady(() => void this.index?.scanAll());
 
-		this.offVerseAction = falah.registerVerseAction(reflectVerseAction(this.app, () => this.settings));
-		this.offDecorator = falah.registerAyahRowDecorator((row, ctx: VerseContext) =>
-			renderReflectionStrip(this.index, this.app, row, ctx.ayahKey)
+		// Falah announces a fresh api whenever it finishes loading — including a
+		// disable/re-enable, which produces a NEW api object with empty registries
+		// that our previously-registered hooks are no longer wired to. This is
+		// Falah's FALAH_API_READY_EVENT ("falah:api-ready" in src/api.ts); Tadabbur
+		// imports no Falah source, so the event name is hardcoded here.
+		this.registerEvent(
+			this.app.workspace.on("falah:api-ready" as never, ((api: FalahApi) => this.attach(api)) as never)
 		);
-		this.register(() => {
-			this.offVerseAction?.();
-			this.offDecorator?.();
-		});
 
 		this.addSettingTab(new TadabburSettingTab(this.app, this));
 		this.addCommand({
@@ -59,6 +45,59 @@ export default class TadabburPlugin extends Plugin {
 			name: "Create reflections base",
 			callback: () => void createReflectionsBase(this.app),
 		});
+
+		// Falah may load after us; resolve now, else retry once the layout is ready.
+		const falah = resolveFalah(this.app);
+		if (falah) {
+			this.attach(falah);
+			return;
+		}
+		this.app.workspace.onLayoutReady(() => {
+			if (this.index) return; // already attached via falah:api-ready in the meantime
+			const late = resolveFalah(this.app);
+			if (late) this.attach(late);
+			else new Notice(`Tadabbur requires the Falah plugin (API ≥ ${REQUIRED_FALAH_API}). Install/enable Falah and reload.`);
+		});
+	}
+
+	/** Undo everything attach() wired up against a specific Falah api instance.
+	 *  Idempotent — safe to call even if never attached (e.g. plugin unload before
+	 *  Falah ever showed up). Does NOT touch this.index itself: the reflection
+	 *  index is rebuilt in place on re-attach, not torn down. */
+	private detach(): void {
+		this.offVerseAction?.();
+		this.offDecorator?.();
+		this.offIndexChange?.();
+		this.offVerseAction = undefined;
+		this.offDecorator = undefined;
+		this.offIndexChange = undefined;
+		setFalah(undefined);
+	}
+
+	/** (Re-)wire Tadabbur against a live Falah api. Runs on first boot and again
+	 *  every time Falah announces a fresh api via falah:api-ready — e.g. after a
+	 *  disable/re-enable, whose new instance has empty registries that any
+	 *  previous registerVerseAction/registerAyahRowDecorator calls no longer
+	 *  reach. detach() first so re-attach is idempotent (no double-registration). */
+	private attach(falah: FalahApi): void {
+		this.detach();
+		setFalah(falah);
+
+		if (!this.index) {
+			this.index = new ReflectionIndexService(this.app);
+			this.register(() => this.index?.dispose());
+		}
+		const index = this.index;
+		index.scheduleRescan(); // don't rebuild the index, but do refresh it now
+
+		this.offVerseAction = falah.registerVerseAction(reflectVerseAction(this.app, () => this.settings));
+		this.offDecorator = falah.registerAyahRowDecorator((row, ctx: VerseContext) =>
+			renderReflectionStrip(index, this.app, row, ctx.ayahKey)
+		);
+		// Falah can't re-run our row decorator on its own — ask it to refresh the
+		// open reader's rows whenever the index changes so the per-ayah reflection
+		// strip stays live (no waiting for the user to change surah).
+		this.offIndexChange = index.onChange(() => falah.refreshReader());
 	}
 
 	async saveSettings(): Promise<void> {

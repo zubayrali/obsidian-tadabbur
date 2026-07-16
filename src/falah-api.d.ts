@@ -1,5 +1,11 @@
 // Ambient mirror of Falah's public API + the types it exposes. Hand-maintained;
 // update alongside Falah's FALAH_API_VERSION. Tadabbur imports NO Falah source.
+//
+// Falah also exports a runtime constant, FALAH_API_READY_EVENT = "falah:api-ready"
+// (src/api.ts), a workspace event fired with the FalahApi whenever a Falah
+// instance finishes loading. It has no type to mirror here (it's a string
+// value, not a type), so it's documented in this comment instead — see
+// src/main.ts, which hardcodes the literal since it can't import it.
 export interface QuranRef { kind: "quran"; surah: number; ayah: number; toAyah?: number; fromWord?: number; toWord?: number }
 export interface HadithRef { kind: "hadith"; collection: string; number: string }
 export type IslamicReference = QuranRef | HadithRef;

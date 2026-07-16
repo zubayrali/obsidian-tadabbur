@@ -11,14 +11,32 @@ export class ReflectionIndexService implements ReflectionIndex {
 	private index: ReflectionIndex | null = null;
 	private timer: number | null = null;
 	private listeners = new Set<() => void>();
+	private lastFingerprint = "";
 
 	constructor(private app: App) {}
+
+	// ponytail: cheap change-detector so unrelated vault edits don't fire listeners
+	// (each fire costs a full reader re-render). Not a parser — just path+line+uri.
+	private fingerprint(files: { path: string; content: string }[]): string {
+		const out: string[] = [];
+		for (const f of files) {
+			f.content.split("\n").forEach((line, i) => {
+				for (const m of line.matchAll(/\[[^\]\n]*\]\((falah:\/\/[^\s)]+)\)/g)) {
+					out.push(`${f.path}#${i}:${m[1]}`);
+				}
+			});
+		}
+		return out.join("|");
+	}
 
 	async scanAll(): Promise<void> {
 		const files = this.app.vault.getMarkdownFiles();
 		const contents = await Promise.all(
 			files.map(async (f) => ({ path: f.path, content: await this.app.vault.cachedRead(f) }))
 		);
+		const fp = this.fingerprint(contents);
+		if (this.index !== null && fp === this.lastFingerprint) return; // nothing ref-relevant changed
+		this.lastFingerprint = fp;
 		this.index = buildIndex(contents, getFalah().ref.findReferences);
 		for (const cb of this.listeners) cb();
 	}
