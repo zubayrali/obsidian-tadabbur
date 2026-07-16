@@ -39,5 +39,9 @@ export interface FalahApi {
 	registerAyahRowDecorator(decorator: AyahRowDecorator): () => void;
 	getVerseText(surah: number, ayah: number): Promise<VerseText | undefined>;
 	navigateReaderTo(surah: number, ayah: number): void;
+	/** Re-render the open Quran reader's ayah rows (re-runs row decorators). No-op if
+	 *  no reader is open. Added in v2 so companion plugins can refresh their row
+	 *  decorations live after their own data changes (e.g. a reflection is saved). */
+	refreshReader(): void;
 	ref: FalahRefApi;
 }

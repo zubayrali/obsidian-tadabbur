@@ -7,11 +7,12 @@ const appWith = (api: unknown): App =>
 
 describe("resolveFalah", () => {
 	it("returns the api when version is sufficient", () => {
-		const api = { version: 1 };
+		const api = { version: 2 };
 		expect(resolveFalah(appWith(api))).toBe(api);
 	});
 	it("returns undefined when Falah is absent or too old", () => {
 		expect(resolveFalah({ plugins: { plugins: {} } } as unknown as App)).toBeUndefined();
 		expect(resolveFalah(appWith({ version: 0 }))).toBeUndefined();
+		expect(resolveFalah(appWith({ version: 1 }))).toBeUndefined();
 	});
 });

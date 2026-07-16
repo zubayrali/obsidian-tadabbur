@@ -3,7 +3,7 @@
 import type { App } from "obsidian";
 import type { FalahApi } from "./falah-api";
 
-export const REQUIRED_FALAH_API = 1;
+export const REQUIRED_FALAH_API = 2;
 
 let current: FalahApi | undefined;
 export function setFalah(api: FalahApi | undefined): void { current = api; }

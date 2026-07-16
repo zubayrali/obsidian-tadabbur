@@ -31,6 +31,10 @@ export default class TadabburPlugin extends Plugin {
 		this.index = new ReflectionIndexService(this.app);
 		this.register(() => this.index.dispose());
 		this.app.workspace.onLayoutReady(() => void this.index.scanAll());
+		// Falah can't re-run our row decorator on its own — ask it to refresh the
+		// open reader's rows whenever the index changes so the per-ayah reflection
+		// strip stays live (no waiting for the user to change surah).
+		this.register(this.index.onChange(() => falah.refreshReader()));
 
 		// Obsidian's vault.on has per-literal overloads that don't distribute
 		// over a union, so a for...of over the event names doesn't type-check.
