@@ -1,6 +1,9 @@
 // Pure normalizers for the settings tab's text inputs. NO "obsidian" import —
 // the settings UI is untestable, but the rules that stop silent
-// misconfiguration are, so they live here.
+// misconfiguration are, so they live here. Importing ./i18n is fine: i18n
+// imports nothing from obsidian either.
+
+import { t } from "./i18n";
 
 const DEFAULT_HEADING = "Tadabbur";
 const DEFAULT_FOLDER = "Tadabbur";
@@ -18,8 +21,8 @@ export interface Cleaned {
 export function cleanHeading(raw: string): Cleaned {
 	const trimmed = raw.trim();
 	const stripped = trimmed.replace(/^#+\s*/, "").trim();
-	if (!stripped) return { value: DEFAULT_HEADING, note: `Can't be empty — using “${DEFAULT_HEADING}”.` };
-	if (stripped !== trimmed) return { value: stripped, note: `Just the text, no “#” — using “${stripped}”.` };
+	if (!stripped) return { value: DEFAULT_HEADING, note: t().noteHeadingEmpty(DEFAULT_HEADING) };
+	if (stripped !== trimmed) return { value: stripped, note: t().noteHeadingStripped(stripped) };
 	return { value: stripped };
 }
 
@@ -27,12 +30,12 @@ export function cleanHeading(raw: string): Cleaned {
  *  .md) rather than silently writing somewhere unexpected. */
 export function cleanFolder(raw: string): Cleaned {
 	const trimmed = raw.trim().replace(/\/{2,}/g, "/").replace(/^\/+|\/+$/g, "");
-	if (!trimmed) return { value: DEFAULT_FOLDER, note: `Can't be empty — using “${DEFAULT_FOLDER}”.` };
+	if (!trimmed) return { value: DEFAULT_FOLDER, note: t().noteFolderEmpty(DEFAULT_FOLDER) };
 	if (/\.md$/i.test(trimmed)) {
 		const fixed = trimmed.replace(/\.md$/i, "").replace(/\/+$/, "");
 		return {
 			value: fixed || DEFAULT_FOLDER,
-			note: "That's a folder, not a note — dropped the “.md”.",
+			note: t().noteFolderDroppedMd,
 		};
 	}
 	return { value: trimmed };

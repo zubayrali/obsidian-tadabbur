@@ -6,6 +6,7 @@ import type { App } from "obsidian";
 import type { VerseAction } from "../falah-api";
 import type { TadabburSettings } from "../settings";
 import { openReflect } from "./capture";
+import { t } from "../i18n";
 
 export function reflectVerseAction(app: App, getSettings: () => TadabburSettings): VerseAction {
 	return {
@@ -13,7 +14,7 @@ export function reflectVerseAction(app: App, getSettings: () => TadabburSettings
 		items(ctx) {
 			return [
 				{
-					title: "Reflect on this verse",
+					title: t().actionReflectOnThisVerse,
 					section: "falah-reflect",
 					icon: "feather",
 					onClick: () => openReflect(app, ctx, getSettings()),

@@ -1,4 +1,6 @@
-import { Notice, type App } from "obsidian";
+import { type App } from "obsidian";
+import { logMessage } from "./log";
+import { t } from "./i18n";
 
 export const REFLECTIONS_BASE = `filters:
   and:
@@ -52,9 +54,9 @@ views:
 export async function createReflectionsBase(app: App): Promise<void> {
 	const path = "Reflections.base";
 	if (app.vault.getAbstractFileByPath(path)) {
-		new Notice("Reflections.base already exists");
+		logMessage(t().noticeBaseAlreadyExists, "info");
 		return;
 	}
 	await app.vault.create(path, REFLECTIONS_BASE);
-	new Notice("Created Reflections.base");
+	logMessage(t().noticeBaseCreated, "info");
 }

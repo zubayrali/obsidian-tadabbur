@@ -2,13 +2,15 @@
 // destination writers. Obsidian-touching (Modal, TFile, moment, frontmatter).
 // The pure string work lives in compose.ts; this file only orchestrates I/O.
 
-import { Modal, Notice, Setting, TFile, moment, normalizePath } from "obsidian";
+import { Modal, Setting, TFile, moment, normalizePath } from "obsidian";
 import type { App } from "obsidian";
 import type { VerseContext, IslamicReference, RenderedText } from "../falah-api";
 import type { TadabburSettings } from "../settings";
 import { getFalah } from "../falah-runtime";
 import { composeEntry, mergeUnique, perAyahNotePath, spliceUnderHeading } from "./compose";
 import { PROMPT_SCAFFOLDS, formatScaffold, scaffoldById } from "./prompts";
+import { logMessage } from "../log";
+import { t } from "../i18n";
 
 type Destination = TadabburSettings["reflectionDestination"];
 
@@ -31,11 +33,11 @@ class ReflectModal extends Modal {
 
 	onOpen(): void {
 		const { contentEl } = this;
-		contentEl.createEl("h3", { text: `Reflect on ${this.ctx.surah}:${this.ctx.ayah}` });
+		contentEl.createEl("h3", { text: t().captureHeading(this.ctx.surah, this.ctx.ayah) });
 
 		this.body = formatScaffold(scaffoldById(this.presetId));
 
-		new Setting(contentEl).setName("Scaffold").addDropdown((d) => {
+		new Setting(contentEl).setName(t().setScaffoldName).addDropdown((d) => {
 			for (const s of PROMPT_SCAFFOLDS) d.addOption(s.id, s.name);
 			d.setValue(this.presetId).onChange((v) => {
 				this.presetId = v;
@@ -44,14 +46,14 @@ class ReflectModal extends Modal {
 		});
 
 		new Setting(contentEl)
-			.setName("Themes")
-			.setDesc("Comma-separated, optional")
-			.addText((t) => t.setPlaceholder("tawhid, tawakkul").onChange((v) => (this.themes = v)));
+			.setName(t().setThemesName)
+			.setDesc(t().setThemesDesc)
+			.addText((tc) => tc.setPlaceholder(t().placeholderThemes).onChange((v) => (this.themes = v)));
 
 		if (this.destination === "ask") {
-			new Setting(contentEl).setName("Save to").addDropdown((d) => {
-				d.addOption("per-ayah", "Per-ayah note");
-				d.addOption("daily-note", "Today's daily note");
+			new Setting(contentEl).setName(t().setSaveToName).addDropdown((d) => {
+				d.addOption("per-ayah", t().optionSaveToPerAyah);
+				d.addOption("daily-note", t().optionSaveToDaily);
 				this.destination = "per-ayah";
 				d.setValue("per-ayah").onChange((v) => (this.destination = v as Destination));
 			});
@@ -64,7 +66,7 @@ class ReflectModal extends Modal {
 
 		new Setting(contentEl).addButton((b) =>
 			b
-				.setButtonText("Save reflection")
+				.setButtonText(t().buttonSaveReflection)
 				.setCta()
 				.onClick(async () => {
 					const themes = this.themes
@@ -115,10 +117,10 @@ async function writeReflection(
 				themes
 			);
 		}
-		new Notice("Reflection saved");
+		logMessage(t().noticeReflectionSaved, "info");
 		return true;
 	} catch (e) {
-		new Notice(`Could not save reflection: ${e instanceof Error ? e.message : String(e)}`);
+		logMessage(t().noticeSaveReflectionFailed(e instanceof Error ? e.message : String(e)), "error");
 		return false;
 	}
 }

@@ -3,6 +3,7 @@ import { PROMPT_SCAFFOLDS } from "./reflect/prompts";
 import { perAyahNotePath } from "./reflect/compose";
 import { dailyNotePath, dailyNoteOptions, dailyNotesEnabled } from "./reflect/capture";
 import { cleanHeading, cleanFolder } from "./settings-helpers";
+import { t } from "./i18n";
 
 export interface TadabburSettings {
 	reflectionDestination: "per-ayah" | "daily-note" | "ask";
@@ -47,16 +48,16 @@ export class TadabburSettingTab extends PluginSettingTab {
 		const s = this.plugin.settings;
 		const dest = s.reflectionDestination;
 
-		containerEl.createEl("h3", { text: "Reflections" });
+		containerEl.createEl("h3", { text: t().setHeadingReflections });
 
 		new Setting(containerEl)
-			.setName("Save reflections to")
-			.setDesc("Where a reflection is written. “Ask each time” prompts in the capture dialog.")
+			.setName(t().setDestinationName)
+			.setDesc(t().setDestinationDesc)
 			.addDropdown((d) =>
 				d
-					.addOption("ask", "Ask each time")
-					.addOption("per-ayah", "Per-ayah note")
-					.addOption("daily-note", "Today's daily note")
+					.addOption("ask", t().optionDestinationAsk)
+					.addOption("per-ayah", t().optionDestinationPerAyah)
+					.addOption("daily-note", t().optionDestinationDaily)
 					.setValue(dest)
 					.onChange(async (v) => {
 						s.reflectionDestination = v as TadabburSettings["reflectionDestination"];
@@ -69,8 +70,8 @@ export class TadabburSettingTab extends PluginSettingTab {
 		if (dest === "daily-note" || dest === "ask") this.renderDailyNoteHeading(containerEl);
 
 		new Setting(containerEl)
-			.setName("Default reflection scaffold")
-			.setDesc("The structure the capture box starts with. You can change it per reflection.")
+			.setName(t().setDefaultScaffoldName)
+			.setDesc(t().setDefaultScaffoldDesc)
 			.addDropdown((d) => {
 				for (const p of PROMPT_SCAFFOLDS) d.addOption(p.id, p.name);
 				d.setValue(s.reflectionPreset).onChange(async (v) => {
@@ -82,11 +83,11 @@ export class TadabburSettingTab extends PluginSettingTab {
 
 	private renderPerAyahFolder(containerEl: HTMLElement): void {
 		const s = this.plugin.settings;
-		const setting = new Setting(containerEl).setName("Per-ayah reflection folder");
+		const setting = new Setting(containerEl).setName(t().setPerAyahFolderName);
 		const preview = setting.descEl.createDiv({ cls: "tadabbur-hint" });
 		const show = (folder: string, note?: string) => {
 			preview.empty();
-			preview.createSpan({ text: `Example: ${perAyahNotePath(folder, 2, 255)}` });
+			preview.createSpan({ text: t().settingsExampleFolder(perAyahNotePath(folder, 2, 255)) });
 			if (note) preview.createDiv({ cls: "tadabbur-hint-warn", text: note });
 		};
 		// Preview the value we'd actually write, not the raw stored string — a
@@ -107,7 +108,7 @@ export class TadabburSettingTab extends PluginSettingTab {
 
 	private renderDailyNoteHeading(containerEl: HTMLElement): void {
 		const s = this.plugin.settings;
-		const setting = new Setting(containerEl).setName("Daily-note heading");
+		const setting = new Setting(containerEl).setName(t().setDailyNoteHeadingName);
 		const preview = setting.descEl.createDiv({ cls: "tadabbur-hint" });
 
 		// Read the user's real Daily Notes config so this shows where reflections
@@ -116,12 +117,12 @@ export class TadabburSettingTab extends PluginSettingTab {
 		const { template } = dailyNoteOptions(this.app);
 		const show = (heading: string, note?: string) => {
 			preview.empty();
-			preview.createSpan({ text: `Appended under “## ${heading}” in ${dailyNotePath(this.app)}` });
-			if (template) preview.createDiv({ text: `New days are seeded from your template: ${template}` });
+			preview.createSpan({ text: t().settingsAppendedUnder(heading, dailyNotePath(this.app)) });
+			if (template) preview.createDiv({ text: t().settingsSeededFromTemplate(template) });
 			if (!enabled) {
 				preview.createDiv({
 					cls: "tadabbur-hint-warn",
-					text: "Core Daily Notes is off, so there's no folder or format to follow — reflections would land at the vault root. Enable Daily Notes to control this.",
+					text: t().settingsDailyNotesOffWarning,
 				});
 			}
 			if (note) preview.createDiv({ cls: "tadabbur-hint-warn", text: note });

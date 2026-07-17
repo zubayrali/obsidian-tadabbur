@@ -1,4 +1,4 @@
-import { Notice, Plugin, type App, type PluginManifest } from "obsidian";
+import { Plugin, type App, type PluginManifest } from "obsidian";
 import { resolveFalah, setFalah, isFalahEnabled, REQUIRED_FALAH_API, FALAH_URL } from "./falah-runtime";
 import type { FalahApi, VerseContext } from "./falah-api";
 import { ReflectionIndexService } from "./data/reflections/service";
@@ -6,10 +6,8 @@ import { reflectVerseAction } from "./reflect/action";
 import { renderReflectionStrip } from "./reflect/strip";
 import { TadabburSettingTab, DEFAULT_SETTINGS, type TadabburSettings } from "./settings";
 import { createReflectionsBase } from "./base";
-
-const NO_FALAH_MESSAGE =
-	"Tadabbur requires the Falah plugin — it reads the Quran text and reader from it, and does nothing on its own. " +
-	`Install and enable Falah first, then enable Tadabbur.\n\n${FALAH_URL}`;
+import { logMessage } from "./log";
+import { t } from "./i18n";
 
 export default class TadabburPlugin extends Plugin {
 	settings: TadabburSettings = { ...DEFAULT_SETTINGS };
@@ -29,8 +27,7 @@ export default class TadabburPlugin extends Plugin {
 		// before any plugin loads, so it's load-order safe here. "Falah enabled but
 		// its api not published yet" is a different question, handled in onload.
 		if (!isFalahEnabled(app)) {
-			new Notice(NO_FALAH_MESSAGE, 15000);
-			console.error(`Tadabbur: ${NO_FALAH_MESSAGE}`);
+			logMessage(t().noticeNoFalah(FALAH_URL), "error");
 			throw new Error("Tadabbur requires the Falah plugin. Install and enable Falah, then enable Tadabbur.");
 		}
 	}
@@ -63,7 +60,7 @@ export default class TadabburPlugin extends Plugin {
 		this.addSettingTab(new TadabburSettingTab(this.app, this));
 		this.addCommand({
 			id: "create-reflections-base",
-			name: "Create reflections base",
+			name: t().cmdCreateReflectionsBase,
 			callback: () => void createReflectionsBase(this.app),
 		});
 
@@ -83,10 +80,7 @@ export default class TadabburPlugin extends Plugin {
 			// The constructor already proved Falah is enabled, so this isn't "not
 			// installed" — Falah is present but published no compatible api. In
 			// practice that means it's too old for us.
-			new Notice(
-				`Tadabbur needs Falah's plugin API v${REQUIRED_FALAH_API} or newer. Falah is enabled but didn't provide it — update Falah, then reload.`,
-				15000
-			);
+			logMessage(t().noticeNeedsFalahApi(REQUIRED_FALAH_API), "error");
 		});
 	}
 

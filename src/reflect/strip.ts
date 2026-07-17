@@ -5,6 +5,7 @@
 import type { App } from "obsidian";
 import { getFalah } from "../falah-runtime";
 import type { ReflectionIndexService } from "../data/reflections/service";
+import { t } from "../i18n";
 
 export function renderReflectionStrip(
 	index: ReflectionIndexService,
@@ -27,7 +28,7 @@ export function renderReflectionStrip(
 	const group = (label: string, locs: { path: string; line: number }[]) => {
 		if (!locs.length) return;
 		const span = strip.createSpan({ cls: "falah-reflect-group" });
-		span.createSpan({ cls: "falah-reflect-label", text: `${label} (${locs.length})` });
+		span.createSpan({ cls: "falah-reflect-label", text: t().stripGroupLabel(label, locs.length) });
 		for (const loc of locs) {
 			const base = loc.path.split("/").pop()?.replace(/\.md$/, "") ?? loc.path;
 			const a = span.createEl("a", { cls: "falah-reflect-link", text: base });
@@ -37,12 +38,12 @@ export function renderReflectionStrip(
 			};
 		}
 	};
-	group("Reflections", reflections);
-	group("Mentions", mentions);
+	group(t().stripReflectionsLabel, reflections);
+	group(t().stripMentionsLabel, mentions);
 
 	if (connections.length) {
 		const span = strip.createSpan({ cls: "falah-reflect-group" });
-		span.createSpan({ cls: "falah-reflect-label", text: "Connected:" });
+		span.createSpan({ cls: "falah-reflect-label", text: t().stripConnectedLabel });
 		for (const c of connections) {
 			const parsed = getFalah().ref.parseAyahKey(c.key);
 			if (!parsed) continue;
