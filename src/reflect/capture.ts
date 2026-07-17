@@ -4,7 +4,7 @@
 
 import { Modal, Setting, TFile, moment, normalizePath } from "obsidian";
 import type { App } from "obsidian";
-import type { VerseContext, IslamicReference, RenderedText } from "../falah-api";
+import type { IslamicReference, RenderedText } from "../falah-api";
 import type { TadabburSettings } from "../settings";
 import { getFalah } from "../falah-runtime";
 import { composeEntry, mergeUnique, perAyahNotePath, spliceUnderHeading } from "./compose";
@@ -14,9 +14,19 @@ import { t } from "../i18n";
 
 type Destination = TadabburSettings["reflectionDestination"];
 
+/** What a reflection needs to know about its verse. Deliberately narrower than
+ *  Falah's VerseContext, which carries the reader's view and plugin — neither of
+ *  which exists when reflecting from outside the reader. */
+export interface ReflectTarget {
+	surah: number;
+	ayah: number;
+	arabic: string;
+	translation?: string;
+}
+
 /** Entry point invoked by the reflect verse action. */
-export function openReflect(app: App, ctx: VerseContext, settings: TadabburSettings): void {
-	new ReflectModal(app, ctx, settings).open();
+export function openReflect(app: App, target: ReflectTarget, settings: TadabburSettings): void {
+	new ReflectModal(app, target, settings).open();
 }
 
 class ReflectModal extends Modal {
@@ -25,7 +35,7 @@ class ReflectModal extends Modal {
 	private body = "";
 	private themes = "";
 
-	constructor(app: App, private ctx: VerseContext, private settings: TadabburSettings) {
+	constructor(app: App, private target: ReflectTarget, private settings: TadabburSettings) {
 		super(app);
 		this.presetId = settings.reflectionPreset;
 		this.destination = settings.reflectionDestination;
@@ -33,7 +43,7 @@ class ReflectModal extends Modal {
 
 	onOpen(): void {
 		const { contentEl } = this;
-		contentEl.createEl("h3", { text: t().captureHeading(this.ctx.surah, this.ctx.ayah) });
+		contentEl.createEl("h3", { text: t().captureHeading(this.target.surah, this.target.ayah) });
 
 		this.body = formatScaffold(scaffoldById(this.presetId));
 
@@ -73,7 +83,7 @@ class ReflectModal extends Modal {
 						.split(",")
 						.map((s) => s.trim())
 						.filter(Boolean);
-					if (await writeReflection(this.app, this.ctx, this.body, this.destination, themes, this.settings))
+					if (await writeReflection(this.app, this.target, this.body, this.destination, themes, this.settings))
 						this.close();
 				})
 		);
@@ -84,39 +94,39 @@ class ReflectModal extends Modal {
 	}
 }
 
-function verseRef(ctx: VerseContext): IslamicReference {
-	return { kind: "quran", surah: ctx.surah, ayah: ctx.ayah };
+function verseRef(target: ReflectTarget): IslamicReference {
+	return { kind: "quran", surah: target.surah, ayah: target.ayah };
 }
 
 async function writeReflection(
 	app: App,
-	ctx: VerseContext,
+	target: ReflectTarget,
 	body: string,
 	destination: Destination,
 	themes: string[],
 	settings: TadabburSettings
 ): Promise<boolean> {
-	const ref = verseRef(ctx);
-	const text: RenderedText = { arabic: ctx.arabic, translation: ctx.translation };
+	const ref = verseRef(target);
+	const text: RenderedText = { arabic: target.arabic, translation: target.translation };
 	// Called through falahRef rather than passed unbound: Falah's ref api is an
 	// object of free functions today, but a method there would lose `this`.
 	const falahRef = getFalah().ref;
 	const entry = composeEntry(ref, text, body, (r, rendered) => falahRef.toCallout(r, rendered));
-	const blockId = `tadabbur-${ctx.surah}-${ctx.ayah}-${Date.now().toString(36)}`;
+	const blockId = `tadabbur-${target.surah}-${target.ayah}-${Date.now().toString(36)}`;
 
 	try {
 		if (destination === "daily-note") {
 			const path = dailyNotePath(app);
 			const seed = await dailyNoteTemplateSeed(app, path);
-			await appendToFile(app, path, settings.dailyNoteHeading, entry, blockId, ctx, themes, seed);
+			await appendToFile(app, path, settings.dailyNoteHeading, entry, blockId, target, themes, seed);
 		} else {
 			await appendToFile(
 				app,
-				normalizePath(perAyahNotePath(settings.reflectionFolder, ctx.surah, ctx.ayah)),
+				normalizePath(perAyahNotePath(settings.reflectionFolder, target.surah, target.ayah)),
 				"Reflections",
 				entry,
 				blockId,
-				ctx,
+				target,
 				themes
 			);
 		}
@@ -210,7 +220,7 @@ async function appendToFile(
 	heading: string,
 	entry: string,
 	blockId: string,
-	ctx: VerseContext,
+	target: ReflectTarget,
 	themes: string[],
 	seed = ""
 ): Promise<void> {
@@ -235,7 +245,7 @@ async function appendToFile(
 	// (that would leave the modal open and invite a duplicate re-submit).
 	try {
 		await fileManager.processFrontMatter(file, (fm: ReflectionFrontMatter) => {
-			fm.verses = mergeUnique(asList(fm.verses), [`${ctx.surah}:${ctx.ayah}`]);
+			fm.verses = mergeUnique(asList(fm.verses), [`${target.surah}:${target.ayah}`]);
 			const tags = asList(fm.tags);
 			if (!tags.includes("tadabbur")) tags.push("tadabbur");
 			fm.tags = tags;

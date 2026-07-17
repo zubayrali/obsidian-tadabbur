@@ -17,7 +17,12 @@ export function reflectVerseAction(app: App, getSettings: () => TadabburSettings
 					title: t().actionReflectOnThisVerse,
 					section: "falah-reflect",
 					icon: "feather",
-					onClick: () => openReflect(app, ctx, getSettings()),
+					onClick: () =>
+						openReflect(
+							app,
+							{ surah: ctx.surah, ayah: ctx.ayah, arabic: ctx.arabic, translation: ctx.translation },
+							getSettings()
+						),
 				},
 			];
 		},
