@@ -33,7 +33,10 @@ export default class TadabburPlugin extends Plugin {
 	}
 
 	async onload(): Promise<void> {
-		this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+		// loadData() is typed `any` (it returns whatever JSON we last saved, or null
+		// on first run); name the shape so the `any` stops here.
+		const saved = (await this.loadData()) as Partial<TadabburSettings> | null;
+		this.settings = { ...DEFAULT_SETTINGS, ...saved };
 		this.register(() => this.detach());
 
 		// Obsidian's vault.on has per-literal overloads that don't distribute

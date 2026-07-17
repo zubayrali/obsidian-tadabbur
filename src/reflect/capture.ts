@@ -98,7 +98,10 @@ async function writeReflection(
 ): Promise<boolean> {
 	const ref = verseRef(ctx);
 	const text: RenderedText = { arabic: ctx.arabic, translation: ctx.translation };
-	const entry = composeEntry(ref, text, body, getFalah().ref.toCallout);
+	// Called through falahRef rather than passed unbound: Falah's ref api is an
+	// object of free functions today, but a method there would lose `this`.
+	const falahRef = getFalah().ref;
+	const entry = composeEntry(ref, text, body, (r, rendered) => falahRef.toCallout(r, rendered));
 	const blockId = `tadabbur-${ctx.surah}-${ctx.ayah}-${Date.now().toString(36)}`;
 
 	try {
@@ -144,10 +147,11 @@ export function dailyNotesEnabled(app: App): boolean {
 	return (app as unknown as InternalPlugins).internalPlugins?.getPluginById("daily-notes")?.enabled ?? false;
 }
 
-// `typeof Moment` (obsidian's re-export) loses its call signature under this
-// project's moduleResolution: "Bundler" — a minimal typed cast, not `any`.
+// Single clock accessor, narrowed to the one method we use. Obsidian's `moment`
+// re-export keeps its call signature under this project's moduleResolution:
+// "node", so no cast is needed to call it.
 function now(): { format(fmt: string): string } {
-	return (moment as unknown as () => { format(fmt: string): string })();
+	return moment();
 }
 
 /** Today's daily-note path from the user's core Daily Notes config. */
@@ -186,6 +190,19 @@ async function dailyNoteTemplateSeed(app: App, notePath: string): Promise<string
 	}
 }
 
+/** The only frontmatter keys Tadabbur stamps. Obsidian types processFrontMatter's
+ *  callback param as `any`; naming the shape we reach into keeps that `any` from
+ *  leaking through every read below. Values stay `unknown` — a hand-edited note
+ *  can legally hold a scalar (or anything else) where we write a list. */
+type ReflectionFrontMatter = { verses?: unknown; tags?: unknown; themes?: unknown };
+
+/** Widen a frontmatter value to a list without touching the values themselves:
+ *  `undefined`/empty → [], a bare scalar → [scalar], a list → itself. */
+function asList(v: unknown): unknown[] {
+	if (Array.isArray(v)) return v as unknown[];
+	return v ? [v] : [];
+}
+
 /** Ensure the file exists, splice the entry under the heading, stamp frontmatter. */
 async function appendToFile(
 	app: App,
@@ -198,28 +215,31 @@ async function appendToFile(
 	seed = ""
 ): Promise<void> {
 	const { vault, fileManager } = app;
-	let file = vault.getAbstractFileByPath(path);
-	if (!(file instanceof TFile)) {
+	// `let file: TFile` assigned from either branch, rather than reusing the
+	// AbstractFile binding and casting: vault.create already returns a TFile, so
+	// the type narrows honestly and no `as TFile` is needed.
+	const existing = vault.getAbstractFileByPath(path);
+	let file: TFile;
+	if (existing instanceof TFile) {
+		file = existing;
+	} else {
 		const dir = path.split("/").slice(0, -1).join("/");
 		if (dir && !vault.getAbstractFileByPath(dir)) await vault.createFolder(dir).catch(() => {});
 		file = await vault.create(path, seed);
 	}
-	const tfile = file as TFile;
-	const content = await vault.read(tfile);
-	await vault.modify(tfile, spliceUnderHeading(content, heading, entry, blockId));
+	const content = await vault.read(file);
+	await vault.modify(file, spliceUnderHeading(content, heading, entry, blockId));
 	// Callout (in body) feeds the reader's reference index; frontmatter feeds Bases.
 	// Best-effort: the body write above already succeeded and is the source of
 	// truth, so a frontmatter failure here must not surface as a save failure
 	// (that would leave the modal open and invite a duplicate re-submit).
 	try {
-		await fileManager.processFrontMatter(tfile, (fm) => {
-			fm.verses = mergeUnique(Array.isArray(fm.verses) ? fm.verses : fm.verses ? [fm.verses] : [], [
-				`${ctx.surah}:${ctx.ayah}`,
-			]);
-			if (!Array.isArray(fm.tags)) fm.tags = fm.tags ? [fm.tags] : [];
-			if (!fm.tags.includes("tadabbur")) fm.tags.push("tadabbur");
-			if (themes.length)
-				fm.themes = mergeUnique(Array.isArray(fm.themes) ? fm.themes : fm.themes ? [fm.themes] : [], themes);
+		await fileManager.processFrontMatter(file, (fm: ReflectionFrontMatter) => {
+			fm.verses = mergeUnique(asList(fm.verses), [`${ctx.surah}:${ctx.ayah}`]);
+			const tags = asList(fm.tags);
+			if (!tags.includes("tadabbur")) tags.push("tadabbur");
+			fm.tags = tags;
+			if (themes.length) fm.themes = mergeUnique(asList(fm.themes), themes);
 		});
 	} catch (e) {
 		console.warn("Tadabbur: could not stamp reflection frontmatter", e);

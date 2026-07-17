@@ -42,7 +42,10 @@ export class ReflectionIndexService implements ReflectionIndex {
 		const fp = this.fingerprint(contents);
 		if (this.index !== null && fp === this.lastFingerprint) return; // nothing ref-relevant changed
 		this.lastFingerprint = fp;
-		this.index = buildIndex(contents, getFalah().ref.findReferences);
+		// Called through falahRef rather than passed unbound: Falah's ref api is an
+		// object of free functions today, but a method there would lose `this`.
+		const falahRef = getFalah().ref;
+		this.index = buildIndex(contents, (text) => falahRef.findReferences(text));
 		for (const cb of this.listeners) cb();
 	}
 

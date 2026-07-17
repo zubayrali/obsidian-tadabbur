@@ -15,8 +15,11 @@ export function composeEntry(
 	return trimmed ? `${callout}\n\n${trimmed}` : callout;
 }
 
-export function mergeUnique(existing: string[], add: string[]): string[] {
-	const out = [...existing];
+// Generic over the element type: frontmatter callers hand us `unknown[]` (a
+// hand-edited note can hold anything), and coercing to string there would
+// rewrite the user's values. The logic never inspects the elements.
+export function mergeUnique<T>(existing: T[], add: T[]): T[] {
+	const out: T[] = [...existing];
 	for (const v of add) if (!out.includes(v)) out.push(v);
 	return out;
 }
