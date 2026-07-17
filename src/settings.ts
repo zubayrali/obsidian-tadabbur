@@ -48,7 +48,7 @@ export class TadabburSettingTab extends PluginSettingTab {
 		const s = this.plugin.settings;
 		const dest = s.reflectionDestination;
 
-		containerEl.createEl("h3", { text: t().setHeadingReflections });
+		new Setting(containerEl).setName(t().setHeadingReflections).setHeading();
 
 		new Setting(containerEl)
 			.setName(t().setDestinationName)

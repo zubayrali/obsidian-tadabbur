@@ -10,7 +10,13 @@ export type LogLevel = "info" | "warn" | "error";
  *  continue (a failed write reports false and keeps the user's text). Code that
  *  must abort throws explicitly at its own call site.
  *
- *  `silent` logs without a Notice, for background failures the user needn't see. */
+ *  `silent` logs without a Notice, for background failures the user needn't see.
+ *
+ *  The info level logs via console.debug, not console.info: Obsidian's review
+ *  rules allow only warn/error/debug, and the config forbids disabling them
+ *  inline. Nothing is lost that matters — warn/error (the levels a bug report
+ *  actually quotes) are untouched; info is success chatter, and console.debug
+ *  still prints it under DevTools' Verbose level. */
 export function logMessage(
 	message: string,
 	level: LogLevel = "info",
@@ -20,5 +26,5 @@ export function logMessage(
 	const line = `Tadabbur: ${message}`;
 	if (level === "error") console.error(line);
 	else if (level === "warn") console.warn(line);
-	else console.info(line);
+	else console.debug(line);
 }

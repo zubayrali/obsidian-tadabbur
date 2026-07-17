@@ -20,7 +20,9 @@ function findReferences(text: string): FoundReference[] {
 	while ((m = re.exec(text))) {
 		const ref: QuranRef = { kind: "quran", surah: Number(m[3]), ayah: Number(m[4]) };
 		if (m[5] !== undefined) ref.toAyah = Number(m[5]);
-		out.push({ index: m.index, match: m[0]!, label: m[1]!, uri: m[2]!, ref });
+		// m[0] is declared on RegExpExecArray, so it needs no `!`; the numbered
+		// groups come from the index signature and do.
+		out.push({ index: m.index, match: m[0], label: m[1]!, uri: m[2]!, ref });
 	}
 	return out;
 }
