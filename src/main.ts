@@ -27,7 +27,7 @@ export default class TadabburPlugin extends Plugin {
 		// before any plugin loads, so it's load-order safe here. "Falah enabled but
 		// its api not published yet" is a different question, handled in onload.
 		if (!isFalahEnabled(app)) {
-			logMessage(t().noticeNoFalah(FALAH_URL), "error");
+			logMessage(t().noticeNoFalah(FALAH_URL), "error", { durationMs: 15000 });
 			throw new Error("Tadabbur requires the Falah plugin. Install and enable Falah, then enable Tadabbur.");
 		}
 	}
@@ -80,7 +80,7 @@ export default class TadabburPlugin extends Plugin {
 			// The constructor already proved Falah is enabled, so this isn't "not
 			// installed" — Falah is present but published no compatible api. In
 			// practice that means it's too old for us.
-			logMessage(t().noticeNeedsFalahApi(REQUIRED_FALAH_API), "error");
+			logMessage(t().noticeNeedsFalahApi(REQUIRED_FALAH_API), "error", { durationMs: 15000 });
 		});
 	}
 

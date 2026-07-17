@@ -32,6 +32,16 @@ export const en = {
 	settingsDailyNotesOffWarning:
 		"Core Daily Notes is off, so there's no folder or format to follow — reflections would land at the vault root. Enable Daily Notes to control this.",
 
+	// -- Reflect scaffolds (src/reflect/prompts.ts) --
+	scaffoldNameThreeLine: "3-line (Summary / Meaning / Action)",
+	scaffoldNameThreeLens: "3-lens (Self / Gratitude / Du'ā)",
+	fieldSummary: "Summary",
+	fieldMeansToMe: "What it means to me",
+	fieldOneAction: "One action",
+	fieldSelfExamination: "Self-examination",
+	fieldGratitudeOrAction: "Gratitude or action",
+	fieldDua: "Du'ā",
+
 	// -- Reflect capture modal --
 	captureHeading: (surah: number, ayah: number) => `Reflect on ${surah}:${ayah}`,
 	setScaffoldName: "Scaffold",

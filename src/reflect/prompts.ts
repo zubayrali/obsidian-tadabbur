@@ -1,5 +1,13 @@
 // Static, offline reflection scaffolds. Pure data + a formatter — no AI in MVP.
 // Presets are data so settings can add/edit them later.
+//
+// `name` and `fields` are getters, not plain string properties: they're
+// user-facing (dropdown labels, note headings) and must resolve through t(),
+// but t() can't be called at module-load time — Obsidian's locale isn't ready
+// yet then, and t() caches its first result forever. A getter only runs when
+// actually read (i.e. at render time), so PROMPT_SCAFFOLDS stays a plain
+// module-level array while the strings stay locale-correct.
+import { t } from "../i18n";
 
 export interface PromptScaffold {
 	id: string;
@@ -10,13 +18,21 @@ export interface PromptScaffold {
 export const PROMPT_SCAFFOLDS: PromptScaffold[] = [
 	{
 		id: "three-line",
-		name: "3-line (Summary / Meaning / Action)",
-		fields: ["Summary", "What it means to me", "One action"],
+		get name(): string {
+			return t().scaffoldNameThreeLine;
+		},
+		get fields(): string[] {
+			return [t().fieldSummary, t().fieldMeansToMe, t().fieldOneAction];
+		},
 	},
 	{
 		id: "three-lens",
-		name: "3-lens (Self / Gratitude / Du'ā)",
-		fields: ["Self-examination", "Gratitude or action", "Du'ā"],
+		get name(): string {
+			return t().scaffoldNameThreeLens;
+		},
+		get fields(): string[] {
+			return [t().fieldSelfExamination, t().fieldGratitudeOrAction, t().fieldDua];
+		},
 	},
 ];
 

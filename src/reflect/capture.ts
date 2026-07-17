@@ -222,6 +222,6 @@ async function appendToFile(
 				fm.themes = mergeUnique(Array.isArray(fm.themes) ? fm.themes : fm.themes ? [fm.themes] : [], themes);
 		});
 	} catch (e) {
-		console.warn("Falah: could not stamp reflection frontmatter", e);
+		console.warn("Tadabbur: could not stamp reflection frontmatter", e);
 	}
 }
