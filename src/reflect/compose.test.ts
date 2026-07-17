@@ -89,6 +89,21 @@ describe("composeCursorBlock", () => {
 		expect(out.split("\n").find((l) => l.includes("^tadabbur-2-255-abc"))).toBe("^tadabbur-2-255-abc");
 	});
 
+	it("pads a whitespace-only tail, not just a non-blank one", () => {
+		// A line of "    " (4 spaces) with the cursor at ch 2 yields after = "  ":
+		// trim() === "" would treat that as absent and leave it glued onto the
+		// ^blockId line, the same defect class the lead/trail padding was meant to fix.
+		const out = composeCursorBlock(entry, "tadabbur-2-255-abc", "  ", "  ");
+		expect(out).toBe(`${entry}\n^tadabbur-2-255-abc\n\n`);
+	});
+
+	it("pads after the block when the cursor sits at the start of a non-empty line", () => {
+		// before = "" (cursor at ch 0), after = "world" — a real user action
+		// (inserting before existing text) that was previously unpinned.
+		const out = composeCursorBlock(entry, "tadabbur-2-255-abc", "", "world");
+		expect(out).toBe(`${entry}\n^tadabbur-2-255-abc\n\n`);
+	});
+
 	it("does not disturb the entry's leading callout", () => {
 		// Only guards THIS function: it must never prepend non-whitespace before the
 		// entry. The real guarantee that an entry starts with a callout lives in

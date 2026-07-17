@@ -147,8 +147,11 @@ async function writeReflection(
 			const { editor, file } = inPlace;
 			const cursor = editor.getCursor();
 			const line = editor.getLine(cursor.line);
-			const text = composeCursorBlock(entry, blockId, line.slice(0, cursor.ch), line.slice(cursor.ch));
-			editor.replaceRange(text, cursor);
+			const block = composeCursorBlock(entry, blockId, line.slice(0, cursor.ch), line.slice(cursor.ch));
+			editor.replaceRange(block, cursor);
+			// Leave the caret after the block, not before it — otherwise the next
+			// keystroke lands inside the callout.
+			editor.setCursor(editor.offsetToPos(editor.posToOffset(cursor) + block.length));
 			if (file) await stampFrontMatter(app, file, target, themes);
 			logMessage(t().noticeReflectionSaved, "info");
 			return true;

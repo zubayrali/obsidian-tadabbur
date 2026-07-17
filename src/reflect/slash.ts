@@ -37,9 +37,17 @@ export function reflectSlashItem(app: App, getSettings: () => TadabburSettings):
 					{ kind: "cursor", editor, file }
 				);
 			} catch (e) {
-				// Falah can be disabled while this flow is mid-await, which makes
-				// getFalah() throw. Abort quietly rather than throwing into Obsidian's
-				// editor-suggest handler.
+				// pickVerse()/getVerseText() can genuinely reject (e.g. the user's
+				// picker flow errors, or data lookup fails) while this handler is
+				// mid-await. A throw here must not escape into Obsidian's
+				// editor-suggest handler, so abort quietly and log instead.
+				//
+				// Note: disabling Falah mid-await does NOT make getFalah() throw —
+				// Falah has no onunload and never clears its api, and Tadabbur's
+				// `current` singleton is only cleared by falah-runtime's detach().
+				// getFalah() would instead return a stale api; harmless today only
+				// because everything reached through it (FALAH_REF) is pure
+				// module-level functions.
 				logMessage(e instanceof Error ? e.message : String(e), "error");
 			}
 		},

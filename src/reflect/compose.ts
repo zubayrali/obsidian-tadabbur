@@ -93,6 +93,11 @@ export function spliceUnderHeading(
  *  reflections. */
 export function composeCursorBlock(entry: string, blockId: string, before: string, after: string): string {
 	const lead = before.trim() === "" ? "" : "\n\n";
-	const trail = after.trim() === "" ? "" : "\n\n";
+	// Any tail at all — including whitespace-only — must be pushed off the
+	// block-id line: a block id has to end its line for Obsidian to resolve it,
+	// and "before.trim() === ''"-style checks treat "   " as absent, which
+	// leaves it glued onto ^blockId. `before`'s lead check stays trim()-based on
+	// purpose (matches Falah's own insertReference house pattern).
+	const trail = after !== "" ? "\n\n" : "";
 	return `${lead}${entry}\n^${blockId}${trail}`;
 }
