@@ -3,7 +3,7 @@
 import type { App } from "obsidian";
 import type { FalahApi } from "./falah-api";
 
-export const REQUIRED_FALAH_API = 3;
+export const REQUIRED_FALAH_API = 4;
 export const FALAH_PLUGIN_ID = "falah";
 export const FALAH_URL = "https://github.com/zubayrali/obsidian-falah";
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveFalah, isFalahEnabled } from "./falah-runtime";
+import { resolveFalah, isFalahEnabled, REQUIRED_FALAH_API } from "./falah-runtime";
 import type { App } from "obsidian";
 
 const appWith = (api: unknown): App =>
@@ -10,14 +10,14 @@ const appEnabling = (...ids: string[]): App =>
 
 describe("resolveFalah", () => {
 	it("returns the api when version is sufficient", () => {
-		const api = { version: 3 };
+		const api = { version: REQUIRED_FALAH_API };
 		expect(resolveFalah(appWith(api))).toBe(api);
 	});
 	it("returns undefined when Falah is absent or too old", () => {
 		expect(resolveFalah({ plugins: { plugins: {} } } as unknown as App)).toBeUndefined();
 		expect(resolveFalah(appWith({ version: 0 }))).toBeUndefined();
 		expect(resolveFalah(appWith({ version: 1 }))).toBeUndefined();
-		expect(resolveFalah(appWith({ version: 2 }))).toBeUndefined();
+		expect(resolveFalah(appWith({ version: REQUIRED_FALAH_API - 1 }))).toBeUndefined();
 	});
 });
 

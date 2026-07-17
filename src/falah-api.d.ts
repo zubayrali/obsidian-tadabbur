@@ -6,6 +6,8 @@
 // instance finishes loading. It has no type to mirror here (it's a string
 // value, not a type), so it's documented in this comment instead — see
 // src/main.ts, which hardcodes the literal since it can't import it.
+import type { Editor, TFile } from "obsidian";
+
 export interface QuranRef { kind: "quran"; surah: number; ayah: number; toAyah?: number; fromWord?: number; toWord?: number }
 export interface HadithRef { kind: "hadith"; collection: string; number: string }
 export type IslamicReference = QuranRef | HadithRef;
@@ -32,6 +34,12 @@ export interface VerseAction {
 
 export type AyahRowDecorator = (row: HTMLElement, ctx: VerseContext) => void;
 export interface VerseText { arabic: string; translation?: string }
+export interface SlashItem {
+	id: string;
+	label: string;
+	keywords: string;
+	onSelect(editor: Editor, file: TFile | null): void | Promise<void>;
+}
 export interface FalahRefApi {
 	toUri(ref: IslamicReference): string;
 	toCallout(ref: IslamicReference, text?: RenderedText): string;
@@ -43,6 +51,10 @@ export interface FalahApi {
 	readonly version: number;
 	registerVerseAction(action: VerseAction): () => void;
 	registerAyahRowDecorator(decorator: AyahRowDecorator): () => void;
+	/** Contribute an entry to Falah's slash menu. Added in v4. */
+	registerSlashItem(item: SlashItem): () => void;
+	/** Falah's own verse picker. Resolves undefined if dismissed. Added in v4. */
+	pickVerse(): Promise<QuranRef | undefined>;
 	getVerseText(surah: number, ayah: number): Promise<VerseText | undefined>;
 	navigateReaderTo(surah: number, ayah: number): void;
 	/** Re-render the open Quran reader's ayah rows (re-runs row decorators). No-op if

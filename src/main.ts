@@ -3,6 +3,7 @@ import { resolveFalah, setFalah, isFalahEnabled, REQUIRED_FALAH_API, FALAH_URL }
 import type { FalahApi, VerseContext } from "./falah-api";
 import { ReflectionIndexService } from "./data/reflections/service";
 import { reflectVerseAction } from "./reflect/action";
+import { reflectSlashItem } from "./reflect/slash";
 import { renderReflectionStrip } from "./reflect/strip";
 import { TadabburSettingTab, DEFAULT_SETTINGS, type TadabburSettings } from "./settings";
 import { createReflectionsBase } from "./base";
@@ -13,6 +14,7 @@ export default class TadabburPlugin extends Plugin {
 	settings: TadabburSettings = { ...DEFAULT_SETTINGS };
 	index?: ReflectionIndexService;
 	private offVerseAction?: () => void;
+	private offSlashItem?: () => void;
 	private offDecorator?: () => void;
 	private offIndexChange?: () => void;
 
@@ -93,9 +95,11 @@ export default class TadabburPlugin extends Plugin {
 	 *  index is rebuilt in place on re-attach, not torn down. */
 	private detach(): void {
 		this.offVerseAction?.();
+		this.offSlashItem?.();
 		this.offDecorator?.();
 		this.offIndexChange?.();
 		this.offVerseAction = undefined;
+		this.offSlashItem = undefined;
 		this.offDecorator = undefined;
 		this.offIndexChange = undefined;
 		setFalah(undefined);
@@ -118,6 +122,7 @@ export default class TadabburPlugin extends Plugin {
 		index.scheduleRescan(); // don't rebuild the index, but do refresh it now
 
 		this.offVerseAction = falah.registerVerseAction(reflectVerseAction(this.app, () => this.settings));
+		this.offSlashItem = falah.registerSlashItem(reflectSlashItem(this.app, () => this.settings));
 		this.offDecorator = falah.registerAyahRowDecorator((row, ctx: VerseContext) =>
 			renderReflectionStrip(index, this.app, row, ctx.ayahKey)
 		);

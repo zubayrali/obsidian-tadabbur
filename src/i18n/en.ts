@@ -58,6 +58,11 @@ export const en = {
 	// -- Reflect verse action --
 	actionReflectOnThisVerse: "Reflect on this verse",
 
+	// -- Reflect slash item (src/reflect/slash.ts) --
+	slashReflectLabel: "Reflect on a verse",
+	noticeNoVerseText: (surah: number, ayah: number) =>
+		`Couldn't load ${surah}:${ayah}. Install Quran data or check your connection.`,
+
 	// -- Reflection strip --
 	stripGroupLabel: (label: string, count: number) => `${label} (${count})`,
 	stripReflectionsLabel: "Reflections",
