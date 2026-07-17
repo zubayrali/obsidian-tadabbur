@@ -146,8 +146,9 @@ async function writeReflection(
 		if (destination === "in-place" && inPlace) {
 			const { editor, file } = inPlace;
 			const cursor = editor.getCursor();
-			const lineIsEmpty = editor.getLine(cursor.line).trim() === "";
-			editor.replaceRange(composeCursorBlock(entry, blockId, lineIsEmpty), cursor);
+			const line = editor.getLine(cursor.line);
+			const text = composeCursorBlock(entry, blockId, line.slice(0, cursor.ch), line.slice(cursor.ch));
+			editor.replaceRange(text, cursor);
 			if (file) await stampFrontMatter(app, file, target, themes);
 			logMessage(t().noticeReflectionSaved, "info");
 			return true;

@@ -71,19 +71,31 @@ describe("perAyahNotePath", () => {
 describe("composeCursorBlock", () => {
 	const entry = "> [!quran] [Al-Baqarah 2:255](falah://quran/2/255)\n> Allah...\n\nMy reflection.";
 
-	it("stamps the block id on its own line", () => {
-		expect(composeCursorBlock(entry, "tadabbur-2-255-abc", true)).toBe(`${entry}\n^tadabbur-2-255-abc`);
+	it("stamps the block id on its own line when the cursor line is empty on both sides", () => {
+		expect(composeCursorBlock(entry, "tadabbur-2-255-abc", "", "")).toBe(`${entry}\n^tadabbur-2-255-abc`);
 	});
 
-	it("pads with a blank line when the cursor line has text, so it starts its own block", () => {
-		expect(composeCursorBlock(entry, "tadabbur-2-255-abc", false)).toBe(
+	it("pads before the block when text precedes the cursor, so it starts its own block", () => {
+		expect(composeCursorBlock(entry, "tadabbur-2-255-abc", "Hello ", "")).toBe(
 			`\n\n${entry}\n^tadabbur-2-255-abc`
 		);
 	});
 
-	it("always starts with a callout marker — the index classifies by callout-ness", () => {
-		// A bare link here would be silently indexed as a mention, not a reflection.
-		const out = composeCursorBlock(entry, "id", false);
+	it("pads after the block when text follows the cursor, so ^blockId still ends its line", () => {
+		// `Hello /reflect world` triggers with ' world' after the cursor; without a
+		// trailing pad it would land on the ^blockId line and break block resolution.
+		const out = composeCursorBlock(entry, "tadabbur-2-255-abc", "Hello ", " world");
+		expect(out).toBe(`\n\n${entry}\n^tadabbur-2-255-abc\n\n`);
+		expect(out.split("\n").find((l) => l.includes("^tadabbur-2-255-abc"))).toBe("^tadabbur-2-255-abc");
+	});
+
+	it("does not disturb the entry's leading callout", () => {
+		// Only guards THIS function: it must never prepend non-whitespace before the
+		// entry. The real guarantee that an entry starts with a callout lives in
+		// Falah's toCallout (composeEntry injects it) and cannot be checked from here.
+		// It matters because the reflection index splits reflections from mentions on
+		// callout-ness alone — a bare link would be silently filed as a mention.
+		const out = composeCursorBlock(entry, "id", "Hello ", "");
 		expect(out.trimStart().startsWith("> [!")).toBe(true);
 	});
 });

@@ -79,14 +79,20 @@ export function spliceUnderHeading(
 }
 
 /** The block to insert at a cursor: the entry plus its block id, padded so it
- *  never glues onto text already on the cursor's line.
+ *  never glues onto text already on the cursor's line — on either side.
+ *
+ *  `before`/`after` are the cursor line's text either side of the cursor.
+ *  editor.replaceRange with no `to` is a pure insertion, so text after the cursor
+ *  would otherwise land on the ^blockId line, corrupting it: a block id must end
+ *  its line for Obsidian to resolve it.
  *
  *  `entry` always carries its callout (composeEntry builds it) — never degrade to
  *  a bare link the way Falah's insertReference does on a non-empty line. The
  *  reflection index splits reflections from mentions on callout-ness alone, so a
  *  bare link would be silently filed as a mention and vanish from the verse's
  *  reflections. */
-export function composeCursorBlock(entry: string, blockId: string, lineIsEmpty: boolean): string {
-	const block = `${entry}\n^${blockId}`;
-	return lineIsEmpty ? block : `\n\n${block}`;
+export function composeCursorBlock(entry: string, blockId: string, before: string, after: string): string {
+	const lead = before.trim() === "" ? "" : "\n\n";
+	const trail = after.trim() === "" ? "" : "\n\n";
+	return `${lead}${entry}\n^${blockId}${trail}`;
 }
