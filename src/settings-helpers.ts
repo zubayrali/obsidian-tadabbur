@@ -1,7 +1,8 @@
 // Pure normalizers for the settings tab's text inputs. NO "obsidian" import —
 // the settings UI is untestable, but the rules that stop silent
-// misconfiguration are, so they live here. Importing ./i18n is fine: i18n
-// imports nothing from obsidian either.
+// misconfiguration are, so they live here. Importing ./i18n does now reach
+// "obsidian" (for getLanguage), but only via vitest.config.ts's alias to
+// test/obsidian-stub.ts, so these tests stay node-only.
 
 import { t } from "./i18n";
 

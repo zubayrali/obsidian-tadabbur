@@ -1,3 +1,4 @@
+import { getLanguage } from "obsidian";
 import { en, type Strings } from "./en";
 import { ar } from "./ar";
 
@@ -23,12 +24,16 @@ export function buildStrings(
 	return { ...en, ...resolveBundle(locale, bundles) };
 }
 
-/** Obsidian stores the UI language in localStorage; fall back to the browser's.
- *  Defensive so it can't throw outside a window (tests, node). */
+/** Obsidian's configured UI language (it reads the same setting we used to pull
+ *  out of localStorage by hand); fall back to the browser's, then English.
+ *  Defensive so it can't throw outside a window (tests, node), where the
+ *  "obsidian" module is the test stub and reports no configured language.
+ *
+ *  getLanguage() is `@since 1.8.7`, which is why manifest.json's minAppVersion
+ *  floor is 1.8.7 rather than Falah's 1.7.2. */
 export function getLocale(): string {
-	if (typeof window === "undefined") return "en";
 	try {
-		return window.localStorage?.getItem("language") || window.navigator?.language || "en";
+		return getLanguage() || (typeof window === "undefined" ? "" : window.navigator?.language) || "en";
 	} catch {
 		return "en";
 	}
