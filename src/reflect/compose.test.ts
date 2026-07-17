@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { composeEntry, mergeUnique, perAyahNotePath, spliceUnderHeading } from "./compose";
+import { composeCursorBlock, composeEntry, mergeUnique, perAyahNotePath, spliceUnderHeading } from "./compose";
 import type { IslamicReference, QuranRef, RenderedText } from "../falah-api";
 
 const ref: QuranRef = { kind: "quran", surah: 2, ayah: 255 };
@@ -65,5 +65,25 @@ describe("mergeUnique", () => {
 describe("perAyahNotePath", () => {
 	it("builds folder/surah-ayah.md", () => {
 		expect(perAyahNotePath("Tadabbur", 2, 255)).toBe("Tadabbur/2-255.md");
+	});
+});
+
+describe("composeCursorBlock", () => {
+	const entry = "> [!quran] [Al-Baqarah 2:255](falah://quran/2/255)\n> Allah...\n\nMy reflection.";
+
+	it("stamps the block id on its own line", () => {
+		expect(composeCursorBlock(entry, "tadabbur-2-255-abc", true)).toBe(`${entry}\n^tadabbur-2-255-abc`);
+	});
+
+	it("pads with a blank line when the cursor line has text, so it starts its own block", () => {
+		expect(composeCursorBlock(entry, "tadabbur-2-255-abc", false)).toBe(
+			`\n\n${entry}\n^tadabbur-2-255-abc`
+		);
+	});
+
+	it("always starts with a callout marker — the index classifies by callout-ness", () => {
+		// A bare link here would be silently indexed as a mention, not a reflection.
+		const out = composeCursorBlock(entry, "id", false);
+		expect(out.trimStart().startsWith("> [!")).toBe(true);
 	});
 });

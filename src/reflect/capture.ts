@@ -3,16 +3,18 @@
 // The pure string work lives in compose.ts; this file only orchestrates I/O.
 
 import { Modal, Setting, TFile, moment, normalizePath } from "obsidian";
-import type { App } from "obsidian";
+import type { App, Editor } from "obsidian";
 import type { IslamicReference, RenderedText } from "../falah-api";
 import type { TadabburSettings } from "../settings";
 import { getFalah } from "../falah-runtime";
-import { composeEntry, mergeUnique, perAyahNotePath, spliceUnderHeading } from "./compose";
+import { composeCursorBlock, composeEntry, mergeUnique, perAyahNotePath, spliceUnderHeading } from "./compose";
 import { PROMPT_SCAFFOLDS, formatScaffold, scaffoldById } from "./prompts";
 import { logMessage } from "../log";
 import { t } from "../i18n";
 
-type Destination = TadabburSettings["reflectionDestination"];
+// "in-place" is a call-site destination, never a saved setting — it is meaningless
+// from the reader, which has no editor.
+type Destination = TadabburSettings["reflectionDestination"] | "in-place";
 
 /** What a reflection needs to know about its verse. Deliberately narrower than
  *  Falah's VerseContext, which carries the reader's view and plugin — neither of
@@ -24,9 +26,19 @@ export interface ReflectTarget {
 	translation?: string;
 }
 
+/** An in-place write target available at THIS call site. Absent from the reader.
+ *  `kind` also decides whether the user gets a Save-to choice: a cursor means they
+ *  invoked an insert command, so there is nothing to ask. */
+export type InPlaceTarget = { kind: "cursor"; editor: Editor; file: TFile | null };
+
 /** Entry point invoked by the reflect verse action. */
-export function openReflect(app: App, target: ReflectTarget, settings: TadabburSettings): void {
-	new ReflectModal(app, target, settings).open();
+export function openReflect(
+	app: App,
+	target: ReflectTarget,
+	settings: TadabburSettings,
+	inPlace?: InPlaceTarget
+): void {
+	new ReflectModal(app, target, settings, inPlace).open();
 }
 
 class ReflectModal extends Modal {
@@ -35,10 +47,15 @@ class ReflectModal extends Modal {
 	private body = "";
 	private themes = "";
 
-	constructor(app: App, private target: ReflectTarget, private settings: TadabburSettings) {
+	constructor(
+		app: App,
+		private target: ReflectTarget,
+		private settings: TadabburSettings,
+		private inPlace?: InPlaceTarget
+	) {
 		super(app);
 		this.presetId = settings.reflectionPreset;
-		this.destination = settings.reflectionDestination;
+		this.destination = inPlace ? "in-place" : settings.reflectionDestination;
 	}
 
 	onOpen(): void {
@@ -60,7 +77,7 @@ class ReflectModal extends Modal {
 			.setDesc(t().setThemesDesc)
 			.addText((tc) => tc.setPlaceholder(t().placeholderThemes).onChange((v) => (this.themes = v)));
 
-		if (this.destination === "ask") {
+		if (this.destination === "ask" && !this.inPlace) {
 			new Setting(contentEl).setName(t().setSaveToName).addDropdown((d) => {
 				d.addOption("per-ayah", t().optionSaveToPerAyah);
 				d.addOption("daily-note", t().optionSaveToDaily);
@@ -83,7 +100,17 @@ class ReflectModal extends Modal {
 						.split(",")
 						.map((s) => s.trim())
 						.filter(Boolean);
-					if (await writeReflection(this.app, this.target, this.body, this.destination, themes, this.settings))
+					if (
+						await writeReflection(
+							this.app,
+							this.target,
+							this.body,
+							this.destination,
+							themes,
+							this.settings,
+							this.inPlace
+						)
+					)
 						this.close();
 				})
 		);
@@ -104,7 +131,8 @@ async function writeReflection(
 	body: string,
 	destination: Destination,
 	themes: string[],
-	settings: TadabburSettings
+	settings: TadabburSettings,
+	inPlace?: InPlaceTarget
 ): Promise<boolean> {
 	const ref = verseRef(target);
 	const text: RenderedText = { arabic: target.arabic, translation: target.translation };
@@ -115,6 +143,15 @@ async function writeReflection(
 	const blockId = `tadabbur-${target.surah}-${target.ayah}-${Date.now().toString(36)}`;
 
 	try {
+		if (destination === "in-place" && inPlace) {
+			const { editor, file } = inPlace;
+			const cursor = editor.getCursor();
+			const lineIsEmpty = editor.getLine(cursor.line).trim() === "";
+			editor.replaceRange(composeCursorBlock(entry, blockId, lineIsEmpty), cursor);
+			if (file) await stampFrontMatter(app, file, target, themes);
+			logMessage(t().noticeReflectionSaved, "info");
+			return true;
+		}
 		if (destination === "daily-note") {
 			const path = dailyNotePath(app);
 			const seed = await dailyNoteTemplateSeed(app, path);
@@ -213,6 +250,29 @@ function asList(v: unknown): unknown[] {
 	return v ? [v] : [];
 }
 
+/** Callout (in body) feeds the reader's reference index; frontmatter feeds Bases.
+ *  Best-effort: the body write already succeeded and is the source of truth, so a
+ *  frontmatter failure here must not surface as a save failure (that would leave
+ *  the modal open and invite a duplicate re-submit). */
+async function stampFrontMatter(
+	app: App,
+	file: TFile,
+	target: ReflectTarget,
+	themes: string[]
+): Promise<void> {
+	try {
+		await app.fileManager.processFrontMatter(file, (fm: ReflectionFrontMatter) => {
+			fm.verses = mergeUnique(asList(fm.verses), [`${target.surah}:${target.ayah}`]);
+			const tags = asList(fm.tags);
+			if (!tags.includes("tadabbur")) tags.push("tadabbur");
+			fm.tags = tags;
+			if (themes.length) fm.themes = mergeUnique(asList(fm.themes), themes);
+		});
+	} catch (e) {
+		console.warn("Tadabbur: could not stamp reflection frontmatter", e);
+	}
+}
+
 /** Ensure the file exists, splice the entry under the heading, stamp frontmatter. */
 async function appendToFile(
 	app: App,
@@ -224,7 +284,7 @@ async function appendToFile(
 	themes: string[],
 	seed = ""
 ): Promise<void> {
-	const { vault, fileManager } = app;
+	const { vault } = app;
 	// `let file: TFile` assigned from either branch, rather than reusing the
 	// AbstractFile binding and casting: vault.create already returns a TFile, so
 	// the type narrows honestly and no `as TFile` is needed.
@@ -239,19 +299,5 @@ async function appendToFile(
 	}
 	const content = await vault.read(file);
 	await vault.modify(file, spliceUnderHeading(content, heading, entry, blockId));
-	// Callout (in body) feeds the reader's reference index; frontmatter feeds Bases.
-	// Best-effort: the body write above already succeeded and is the source of
-	// truth, so a frontmatter failure here must not surface as a save failure
-	// (that would leave the modal open and invite a duplicate re-submit).
-	try {
-		await fileManager.processFrontMatter(file, (fm: ReflectionFrontMatter) => {
-			fm.verses = mergeUnique(asList(fm.verses), [`${target.surah}:${target.ayah}`]);
-			const tags = asList(fm.tags);
-			if (!tags.includes("tadabbur")) tags.push("tadabbur");
-			fm.tags = tags;
-			if (themes.length) fm.themes = mergeUnique(asList(fm.themes), themes);
-		});
-	} catch (e) {
-		console.warn("Tadabbur: could not stamp reflection frontmatter", e);
-	}
+	await stampFrontMatter(app, file, target, themes);
 }

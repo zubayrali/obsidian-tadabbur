@@ -77,3 +77,16 @@ export function spliceUnderHeading(
 	lines.splice(insertAt, 0, "", stamped);
 	return lines.join("\n");
 }
+
+/** The block to insert at a cursor: the entry plus its block id, padded so it
+ *  never glues onto text already on the cursor's line.
+ *
+ *  `entry` always carries its callout (composeEntry builds it) — never degrade to
+ *  a bare link the way Falah's insertReference does on a non-empty line. The
+ *  reflection index splits reflections from mentions on callout-ness alone, so a
+ *  bare link would be silently filed as a mention and vanish from the verse's
+ *  reflections. */
+export function composeCursorBlock(entry: string, blockId: string, lineIsEmpty: boolean): string {
+	const block = `${entry}\n^${blockId}`;
+	return lineIsEmpty ? block : `\n\n${block}`;
+}
