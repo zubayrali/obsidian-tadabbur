@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-tadabbur",
-	"version": "1.0.0",
+	"version": "0.2.0",
 	"description": "Quran reflection & journaling — a companion to the Falah plugin.",
 	"main": "main.js",
 	"type": "module",
@@ -9,7 +9,9 @@
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"lint": "eslint .",
-		"test": "vitest run"
+		"test": "vitest run",
+		"validate:release": "node scripts/validate-release.mjs",
+		"check": "npm run validate:release && npm run lint && npm test && npm run build"
 	},
 	"keywords": [],
 	"license": "0-BSD",

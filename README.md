@@ -1,52 +1,70 @@
 # Tadabbur
 
-Quran reflection and journaling for Obsidian. Reflect on an ayah straight from the reader, and your notes become a map of which verses you've sat with — and which ones you connect.
+Quran reflection journaling for Obsidian. Tadabbur connects the verses you read in Falah with durable, plain-Markdown reflections in your vault.
 
 ## Requires Falah
 
-**Tadabbur is a companion plugin. It does nothing on its own, and it will not enable without [Falah](https://github.com/zubayrali/obsidian-falah) installed and enabled.**
+Tadabbur is a companion plugin and requires [Falah](https://github.com/zubayrali/obsidian-falah) with plugin API v7 or newer. Falah supplies Quran text, rendered references, the reader, and the extension points Tadabbur uses. Install and enable Falah before enabling Tadabbur.
 
-Falah provides the Quran text, translations, and the reader that Tadabbur hooks into. Install Falah first, then enable Tadabbur.
+## Features
 
-The split is deliberate: if you only want a Quran reader with clickable references, Falah alone is that — and none of the journaling opinions below get forced on you.
+- **Reflect from the reader.** Open an ayah's action menu and select **Reflect on this verse**.
+- **Reflect from references.** Right-click or long-press a rendered Quran reference, or use the action in its detail view.
+- **Reflect while writing.** Enter `/reflect`, choose an ayah, and insert the reflection at the cursor.
+- **Choose where reflections live.** Save to a per-ayah note, today's Daily Note, ask each time, or insert at the cursor.
+- **Keep your existing notes.** Tadabbur appends under the configured heading and never replaces an existing reflection.
+- **Use guided scaffolds.** Start with Summary / Meaning / Action or Self-examination / Gratitude / Du'a, then edit freely.
+- **Connect ideas automatically.** Falah's reader shows reflections, ordinary mentions, and verses co-cited in the same note.
+- **Browse reflections with Bases.** Run **Create reflections base** to create `Reflections.base` with list, theme, and card views.
+- **Work in English or Arabic.** All current Tadabbur interface text is localized in both languages.
 
-## What it does
+Reflection callouts and metadata remain ordinary Markdown and frontmatter inside your vault. Tadabbur does not send vault content to an external service.
 
-- **Reflect from the reader.** Right-click (or ⋯) any ayah → *Reflect on this verse* → write. It's saved with the verse quoted above it.
-- **Your notes, your structure.** Write to a per-ayah note (`Tadabbur/2-255.md`) or append to today's daily note — honouring your own Daily Notes folder, format, and **template**. Reflect on the same ayah again next week and it appends; nothing is overwritten.
-- **Connections without link plumbing.** The verse callout Tadabbur inserts *is* the connection. Cite 2:255 and 59:22 in one reflection and the reader shows that link from **either** verse — no `[[2:255]]` wikilinks, which nobody reads or remembers by number anyway.
-- **Reflections surface where you read.** Under each ayah: which of your notes reflect on it, which merely mention it, and which verses you've connected it to. Click through to the note in a new tab.
-- **Prompts, not blank pages.** Optional scaffolds — *Summary / What it means to me / One action*, or *self-examination / gratitude / du'ā*. Offline, editable, no AI.
-- **Works with Bases.** Reflections are stamped with `verses`, `themes`, and `#tadabbur` frontmatter. The *Create reflections base* command drops in a ready-made Base with timeline, by-theme, and card views.
+## Reflection destinations
 
-Everything is plain Markdown in your vault. Nothing is stored anywhere else.
+### Per-ayah notes
 
-## Install
+The default path is `Tadabbur/<surah>-<ayah>.md`, such as `Tadabbur/2-255.md`. Repeated reflections on the same ayah append to the same note.
 
-Until this is in the community plugin store:
+### Daily Notes
 
-1. Install and enable **[Falah](https://github.com/zubayrali/obsidian-falah)**.
-2. Download `main.js`, `manifest.json`, and `styles.css` from this repo's latest release.
-3. Put them in `<vault>/.obsidian/plugins/falah-tadabbur/`.
-4. Reload Obsidian and enable **Tadabbur** in Community Plugins.
+Tadabbur follows the core Daily Notes plugin's folder, date format, and template, then appends beneath the configured heading. The default heading is `Tadabbur`.
+
+### Current note
+
+The `/reflect` slash action inserts a complete Quran callout and reflection scaffold at the current cursor position.
 
 ## Settings
 
-- **Save reflections to** — per-ayah note, today's daily note, or ask each time.
-- **Per-ayah reflection folder** — default `Tadabbur`.
-- **Daily-note heading** — the heading reflections are appended under. Default `Tadabbur`.
-- **Default reflection scaffold** — which prompt structure the capture box starts with.
+- **Save reflections to** — per-ayah note, today's Daily Note, or ask each time.
+- **Per-ayah reflection folder** — defaults to `Tadabbur`.
+- **Daily-note heading** — defaults to `Tadabbur`.
+- **Default reflection scaffold** — controls the initial prompt structure.
+
+Settings display the normalized destination so you can see where the next reflection will be written.
+
+## Manual installation
+
+Until the first GitHub release is published:
+
+1. Install and enable Falah API v7 or newer.
+2. Run `npm install` and `npm run build` in this repository.
+3. Copy `main.js`, `manifest.json`, and `styles.css` into `<vault>/.obsidian/plugins/falah-tadabbur/`.
+4. Reload Obsidian and enable **Tadabbur** under **Settings → Community plugins**.
 
 ## Development
 
 ```bash
 npm install
-npm run dev    # watch build
-npm test       # vitest
+npm run dev
+npm run build
+npm test
+npm run lint
+npm run check  # release metadata, lint, tests, and production build
 ```
 
-Tadabbur consumes Falah's public plugin API (`app.plugins.plugins["falah"].api`, v3+) and imports **no Falah source** — only the vendored types in `src/falah-api.d.ts`. If Falah's public API changes, update that file and the version floor in `src/falah-runtime.ts` together.
+Tadabbur consumes Falah's public plugin API through `app.plugins.plugins["falah"].api`. It imports no Falah source; the local contract mirror lives in `src/falah-api.d.ts`.
 
 ## License
 
-MIT
+0BSD. See [LICENSE](LICENSE).

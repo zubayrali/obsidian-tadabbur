@@ -1,7 +1,6 @@
 // Verse-keyed index over every falah:// reference in the vault. Pure — NO
 // "obsidian" import — so it stays vitest-testable. The reader reads it to show
-// per-verse reflections/mentions/connections; connections come from co-citation,
-// not from Obsidian's backlink graph.
+// per-verse reflections/mentions/connections; connections come from co-citation.
 
 import type { FoundReference, IslamicReference } from "../../falah-api";
 
@@ -10,13 +9,13 @@ export function expandVerseKeys(ref: IslamicReference): string[] {
 	if (ref.kind === "hadith") return [`${ref.collection}:${ref.number}`];
 	const to = ref.toAyah ?? ref.ayah;
 	const keys: string[] = [];
-	for (let a = ref.ayah; a <= to; a++) keys.push(`${ref.surah}:${a}`);
+	for (let ayah = ref.ayah; ayah <= to; ayah++) keys.push(`${ref.surah}:${ayah}`);
 	return keys;
 }
 
 export interface RefLocation {
 	path: string;
-	line: number; // 0-based
+	line: number;
 	isCallout: boolean;
 	label: string;
 }
@@ -30,44 +29,82 @@ export interface ReflectionIndex {
 
 const CALLOUT_LINE = /^\s*>\s*\[!/;
 
-export function buildIndex(
-	files: { path: string; content: string }[],
-	findReferences: (text: string) => FoundReference[]
-): ReflectionIndex {
-	const byKey = new Map<string, RefLocation[]>();
-	const fileKeys = new Map<string, Set<string>>(); // path → keys cited in that file
+/** Mutable per-file index. Updating one note touches only that note's entries. */
+export class IncrementalReflectionIndex implements ReflectionIndex {
+	private readonly byKey = new Map<string, RefLocation[]>();
+	private readonly fileKeys = new Map<string, Set<string>>();
+	private readonly connections = new Map<string, Map<string, number>>();
 
-	for (const f of files) {
-		const keysInFile = new Set<string>();
-		f.content.split("\n").forEach((line, i) => {
+	constructor(private readonly findReferences: (text: string) => FoundReference[]) {}
+
+	upsertFile(path: string, content: string): void {
+		this.removeFile(path);
+		const keys = new Set<string>();
+		content.split("\n").forEach((line, lineNumber) => {
 			const isCallout = CALLOUT_LINE.test(line);
-			for (const found of findReferences(line)) {
+			for (const found of this.findReferences(line)) {
 				for (const key of expandVerseKeys(found.ref)) {
-					const loc: RefLocation = { path: f.path, line: i, isCallout, label: found.label };
-					let list = byKey.get(key);
-					if (!list) byKey.set(key, (list = []));
-					list.push(loc);
-					keysInFile.add(key);
+					const locations = this.byKey.get(key) ?? [];
+					locations.push({ path, line: lineNumber, isCallout, label: found.label });
+					this.byKey.set(key, locations);
+					keys.add(key);
 				}
 			}
 		});
-		fileKeys.set(f.path, keysInFile);
+		this.fileKeys.set(path, keys);
+		this.adjustConnections(keys, 1);
 	}
 
-	return {
-		reflectionsFor: (key) => (byKey.get(key) ?? []).filter((l) => l.isCallout),
-		mentionsFor: (key) => (byKey.get(key) ?? []).filter((l) => !l.isCallout),
-		count: (key) => (byKey.get(key) ?? []).length,
-		connectionsFor: (key) => {
-			const weights = new Map<string, number>();
-			for (const keys of fileKeys.values()) {
-				if (!keys.has(key)) continue;
-				for (const other of keys) {
-					if (other === key) continue;
-					weights.set(other, (weights.get(other) ?? 0) + 1);
-				}
+	removeFile(path: string): void {
+		const keys = this.fileKeys.get(path);
+		if (!keys) return;
+		this.adjustConnections(keys, -1);
+		for (const key of keys) {
+			const remaining = (this.byKey.get(key) ?? []).filter((location) => location.path !== path);
+			if (remaining.length) this.byKey.set(key, remaining);
+			else this.byKey.delete(key);
+		}
+		this.fileKeys.delete(path);
+	}
+
+	private adjustConnections(keys: Set<string>, delta: 1 | -1): void {
+		for (const key of keys) {
+			for (const other of keys) {
+				if (other === key) continue;
+				const weights = this.connections.get(key) ?? new Map<string, number>();
+				const next = (weights.get(other) ?? 0) + delta;
+				if (next > 0) weights.set(other, next);
+				else weights.delete(other);
+				if (weights.size) this.connections.set(key, weights);
+				else this.connections.delete(key);
 			}
-			return [...weights].map(([k, weight]) => ({ key: k, weight })).sort((a, b) => b.weight - a.weight);
-		},
-	};
+		}
+	}
+
+	reflectionsFor(key: string): RefLocation[] {
+		return (this.byKey.get(key) ?? []).filter((location) => location.isCallout);
+	}
+
+	mentionsFor(key: string): RefLocation[] {
+		return (this.byKey.get(key) ?? []).filter((location) => !location.isCallout);
+	}
+
+	connectionsFor(key: string): { key: string; weight: number }[] {
+		return [...(this.connections.get(key) ?? [])]
+			.map(([connectedKey, weight]) => ({ key: connectedKey, weight }))
+			.sort((a, b) => b.weight - a.weight || a.key.localeCompare(b.key));
+	}
+
+	count(key: string): number {
+		return this.byKey.get(key)?.length ?? 0;
+	}
+}
+
+export function buildIndex(
+	files: { path: string; content: string }[],
+	findReferences: (text: string) => FoundReference[],
+): ReflectionIndex {
+	const index = new IncrementalReflectionIndex(findReferences);
+	for (const file of files) index.upsertFile(file.path, file.content);
+	return index;
 }

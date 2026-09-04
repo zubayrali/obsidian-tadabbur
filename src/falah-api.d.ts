@@ -32,6 +32,11 @@ export interface VerseAction {
 	items(ctx: VerseContext): VerseMenuItem[] | Promise<VerseMenuItem[]>;
 }
 
+export interface ReferenceAction {
+	id: string;
+	items(ref: IslamicReference): VerseMenuItem[] | Promise<VerseMenuItem[]>;
+}
+
 export type AyahRowDecorator = (row: HTMLElement, ctx: VerseContext) => void;
 export interface VerseText { arabic: string; translation?: string }
 export interface SlashItem {
@@ -50,6 +55,8 @@ export interface FalahRefApi {
 export interface FalahApi {
 	readonly version: number;
 	registerVerseAction(action: VerseAction): () => void;
+	/** Contribute actions to rendered references and the detail view. Added in v7. */
+	registerReferenceAction(action: ReferenceAction): () => void;
 	registerAyahRowDecorator(decorator: AyahRowDecorator): () => void;
 	/** Contribute an entry to Falah's slash menu. Added in v4. */
 	registerSlashItem(item: SlashItem): () => void;

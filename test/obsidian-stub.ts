@@ -11,3 +11,10 @@
 export function getLanguage(): string {
 	return "";
 }
+
+export class TFile {
+	constructor(public path: string) {}
+	get extension(): string {
+		return this.path.split(".").pop() ?? "";
+	}
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildIndex, expandVerseKeys } from "./index";
+import { buildIndex, expandVerseKeys, IncrementalReflectionIndex } from "./index";
 import type { FoundReference, QuranRef } from "../../falah-api";
 
 const q = (surah: number, ayah: number, toAyah?: number): QuranRef => ({
@@ -74,5 +74,35 @@ describe("buildIndex", () => {
 		);
 		expect(idx.connectionsFor("2:255")).toEqual([{ key: "65:3", weight: 2 }]);
 		expect(idx.connectionsFor("65:3")).toEqual([{ key: "2:255", weight: 2 }]);
+	});
+});
+
+describe("IncrementalReflectionIndex", () => {
+	it("replaces one file without leaving stale locations or connections", () => {
+		const index = new IncrementalReflectionIndex(findReferences);
+		index.upsertFile("journal.md", [
+			"> [!quran] [A](falah://quran/2/255)",
+			"See [B](falah://quran/65/3)",
+		].join("\n"));
+		expect(index.connectionsFor("2:255")).toEqual([{ key: "65:3", weight: 1 }]);
+
+		index.upsertFile("journal.md", "> [!quran] [C](falah://quran/94/5)");
+		expect(index.count("2:255")).toBe(0);
+		expect(index.count("65:3")).toBe(0);
+		expect(index.reflectionsFor("94:5")).toHaveLength(1);
+		expect(index.connectionsFor("94:5")).toEqual([]);
+	});
+
+	it("removes a deleted file and decrements shared connection weights", () => {
+		const index = new IncrementalReflectionIndex(findReferences);
+		const linked = "[A](falah://quran/2/255) [B](falah://quran/65/3)";
+		index.upsertFile("one.md", linked);
+		index.upsertFile("two.md", linked);
+		expect(index.connectionsFor("2:255")).toEqual([{ key: "65:3", weight: 2 }]);
+
+		index.removeFile("one.md");
+		expect(index.connectionsFor("2:255")).toEqual([{ key: "65:3", weight: 1 }]);
+		index.removeFile("two.md");
+		expect(index.connectionsFor("2:255")).toEqual([]);
 	});
 });

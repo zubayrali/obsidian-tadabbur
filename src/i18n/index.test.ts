@@ -36,11 +36,9 @@ describe("buildStrings", () => {
 });
 
 describe("real ar bundle", () => {
-	it("an Arabic reader gets Arabic where we have it and English everywhere else", () => {
+	it("translates every current user-facing key", () => {
 		const s = buildStrings("ar");
 		expect(s.pluginName).toBe(ar.pluginName);
-		const untranslated = (Object.keys(en) as (keyof typeof en)[]).filter((k) => !(k in ar));
-		expect(untranslated.length).toBeGreaterThan(0); // the point: a partial bundle
-		for (const k of untranslated) expect(s[k]).toBe(en[k]);
+		expect(Object.keys(ar).sort()).toEqual(Object.keys(en).sort());
 	});
 });

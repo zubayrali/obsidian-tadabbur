@@ -1,9 +1,10 @@
-import { Plugin, type App, type PluginManifest } from "obsidian";
+import { Plugin, TFile, type App, type PluginManifest } from "obsidian";
 import { resolveFalah, setFalah, isFalahEnabled, REQUIRED_FALAH_API, FALAH_URL } from "./falah-runtime";
 import type { FalahApi, VerseContext } from "./falah-api";
 import { ReflectionIndexService } from "./data/reflections/service";
 import { reflectVerseAction } from "./reflect/action";
 import { reflectSlashItem } from "./reflect/slash";
+import { reflectReferenceAction } from "./reflect/reference-action";
 import { renderReflectionStrip } from "./reflect/strip";
 import { TadabburSettingTab, DEFAULT_SETTINGS, type TadabburSettings } from "./settings";
 import { createReflectionsBase } from "./base";
@@ -14,6 +15,7 @@ export default class TadabburPlugin extends Plugin {
 	settings: TadabburSettings = { ...DEFAULT_SETTINGS };
 	index?: ReflectionIndexService;
 	private offVerseAction?: () => void;
+	private offReferenceAction?: () => void;
 	private offSlashItem?: () => void;
 	private offDecorator?: () => void;
 	private offIndexChange?: () => void;
@@ -47,10 +49,17 @@ export default class TadabburPlugin extends Plugin {
 		// Plugin-lifetime (registered once, not re-wired per attach/detach cycle);
 		// guarded with `?.` because Falah — and so this.index — may not exist yet,
 		// or may never arrive at all.
-		this.registerEvent(this.app.vault.on("modify", () => this.index?.scheduleRescan()));
-		this.registerEvent(this.app.vault.on("create", () => this.index?.scheduleRescan()));
-		this.registerEvent(this.app.vault.on("delete", () => this.index?.scheduleRescan()));
-		this.registerEvent(this.app.vault.on("rename", () => this.index?.scheduleRescan()));
+		this.registerEvent(this.app.vault.on("modify", (file) => {
+			if (file instanceof TFile) this.index?.scheduleFile(file);
+		}));
+		this.registerEvent(this.app.vault.on("create", (file) => {
+			if (file instanceof TFile) this.index?.scheduleFile(file);
+		}));
+		this.registerEvent(this.app.vault.on("delete", (file) => this.index?.scheduleRemove(file.path)));
+		this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
+			if (file instanceof TFile) this.index?.scheduleRename(file, oldPath);
+			else this.index?.scheduleRemove(oldPath);
+		}));
 		this.app.workspace.onLayoutReady(() => void this.index?.scanAll());
 
 		// Falah announces a fresh api whenever it finishes loading — including a
@@ -95,10 +104,12 @@ export default class TadabburPlugin extends Plugin {
 	 *  index is rebuilt in place on re-attach, not torn down. */
 	private detach(): void {
 		this.offVerseAction?.();
+		this.offReferenceAction?.();
 		this.offSlashItem?.();
 		this.offDecorator?.();
 		this.offIndexChange?.();
 		this.offVerseAction = undefined;
+		this.offReferenceAction = undefined;
 		this.offSlashItem = undefined;
 		this.offDecorator = undefined;
 		this.offIndexChange = undefined;
@@ -122,6 +133,7 @@ export default class TadabburPlugin extends Plugin {
 		index.scheduleRescan(); // don't rebuild the index, but do refresh it now
 
 		this.offVerseAction = falah.registerVerseAction(reflectVerseAction(this.app, () => this.settings));
+		this.offReferenceAction = falah.registerReferenceAction(reflectReferenceAction(this.app, () => this.settings));
 		this.offSlashItem = falah.registerSlashItem(reflectSlashItem(this.app, () => this.settings));
 		this.offDecorator = falah.registerAyahRowDecorator((row, ctx: VerseContext) =>
 			renderReflectionStrip(index, this.app, row, ctx.ayahKey)
